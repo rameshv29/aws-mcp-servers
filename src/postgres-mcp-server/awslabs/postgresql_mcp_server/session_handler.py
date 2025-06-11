@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import time
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 logger = logging.getLogger("postgresql-mcp-server")
 
@@ -33,7 +33,9 @@ class SessionHandler:
             self.session_locks[session_id] = asyncio.Lock()
             self.sessions[session_id] = {
                 "created_at": time.time(),
-                "last_access": time.time()
+                "last_access": time.time(),
+                "db_connection": None,
+                "connection_params": {}
             }
             logger.info(f"New session registered: {session_id}")
         else:
@@ -41,6 +43,37 @@ class SessionHandler:
             self.sessions[session_id]["last_access"] = time.time()
             
         return self.session_locks[session_id]
+    
+    def get_connection(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """Get the database connection for the given session"""
+        if session_id in self.sessions:
+            return self.sessions[session_id].get("db_connection")
+        return None
+    
+    def set_connection(self, session_id: str, connection: Any, connection_params: Dict[str, Any]):
+        """Set the database connection for the given session"""
+        if session_id in self.sessions:
+            self.sessions[session_id]["db_connection"] = connection
+            self.sessions[session_id]["connection_params"] = connection_params
+            logger.info(f"Database connection set for session: {session_id}")
+    
+    def get_connection_params(self, session_id: str) -> Dict[str, Any]:
+        """Get the connection parameters for the given session"""
+        if session_id in self.sessions:
+            return self.sessions[session_id].get("connection_params", {})
+        return {}
+    
+    def close_connection(self, session_id: str):
+        """Close the database connection for the given session"""
+        if session_id in self.sessions and self.sessions[session_id].get("db_connection"):
+            connection = self.sessions[session_id]["db_connection"]
+            if hasattr(connection, "disconnect") and callable(connection.disconnect):
+                try:
+                    connection.disconnect()
+                    logger.info(f"Database connection closed for session: {session_id}")
+                except Exception as e:
+                    logger.error(f"Error closing database connection for session {session_id}: {str(e)}")
+            self.sessions[session_id]["db_connection"] = None
     
     async def _cleanup_expired_sessions(self):
         """Periodically clean up expired sessions"""
@@ -55,6 +88,8 @@ class SessionHandler:
                 
                 for sid in expired_sessions:
                     if sid in self.sessions:
+                        # Close database connection if it exists
+                        self.close_connection(sid)
                         del self.sessions[sid]
                     if sid in self.session_locks:
                         del self.session_locks[sid]
@@ -69,3 +104,6 @@ class SessionHandler:
             logger.info("Session cleanup task cancelled")
         except Exception as e:
             logger.error(f"Error in session cleanup: {str(e)}")
+
+# Global session handler instance
+session_handler = SessionHandler()
