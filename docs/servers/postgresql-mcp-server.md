@@ -17,7 +17,7 @@ A Model Context Protocol (MCP) server for PostgreSQL database analysis and optim
 ## Installation
 
 ```bash
-pip install -r requirements.txt
+pip install awslabs.postgresql-mcp-server
 ```
 
 ## Usage
@@ -25,15 +25,12 @@ pip install -r requirements.txt
 ### Running the server
 
 ```bash
-cd /Users/reachrk/Downloads/postgresql-mcp-server
-python -m awslabs.postgresql_mcp_server.main --port 8000 --host 0.0.0.0
-```
-
-### Using with RDS Data API
-
-```bash
-cd /Users/reachrk/Downloads/postgresql-mcp-server
-python -m awslabs.postgresql_mcp_server.server --resource_arn <RDS_RESOURCE_ARN> --secret_arn <SECRET_ARN> --database <DATABASE_NAME> --region <AWS_REGION> --readonly true
+python -m awslabs.postgresql_mcp_server.server \
+  --resource_arn <RDS_RESOURCE_ARN> \
+  --secret_arn <SECRET_ARN> \
+  --database <DATABASE_NAME> \
+  --region <AWS_REGION> \
+  --readonly true
 ```
 
 ### Connection Options

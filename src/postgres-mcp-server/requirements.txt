@@ -1,0 +1,8 @@
+mcp[cli]>=1.6.0
+psycopg2-binary>=2.9.9
+boto3>=1.38.5
+botocore>=1.38.5
+loguru>=0.7.0
+pydantic>=2.10.6
+starlette>=0.22.0
+uvicorn>=0.20.0

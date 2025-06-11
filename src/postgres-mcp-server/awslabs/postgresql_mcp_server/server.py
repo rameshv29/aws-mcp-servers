@@ -12,16 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""awslabs postgres MCP Server implementation."""
+"""awslabs postgresql MCP Server implementation."""
 
 import argparse
 import asyncio
 import boto3
 import sys
-from awslabs.postgres_mcp_server.mutable_sql_detector import (
+import os
+
+# Add the current directory to the Python path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+
+from mutable_sql_detector import (
     check_sql_injection_risk,
     detect_mutating_keywords,
 )
+from tools import register_all_tools
 from botocore.exceptions import BotoCoreError, ClientError
 from loguru import logger
 from mcp.server.fastmcp import Context, FastMCP
@@ -32,7 +40,6 @@ from typing import Annotated, Any, Dict, List, Optional
 client_error_code_key = 'run_query ClientError code'
 unexpected_error_key = 'run_query unexpected error'
 write_query_prohibited_key = 'Your MCP tool only allows readonly query. If you want to write, change the MCP configuration per README.md'
-query_comment_prohibited_key = 'The comment in query is prohibited because of injection risk'
 query_injection_risk_key = 'Your query contains risky injection patterns'
 
 
@@ -177,14 +184,22 @@ def parse_execute_response(response: dict) -> list[dict]:
 
 
 mcp = FastMCP(
-    'apg-mcp MCP server. This is the starting point for all solutions created',
-    dependencies=[
-        'loguru',
-    ],
+    'awslabs.postgresql-mcp-server',
+    instructions='''You are an expert PostgreSQL assistant. You can help with:
+    
+    1. Running SQL queries with run_query and get_table_schema
+    2. Analyzing database structure with analyze_database_structure
+    3. Analyzing query performance with analyze_query
+    4. Recommending indexes with recommend_indexes
+    5. Executing read-only queries with execute_read_only_query
+    
+    All operations are performed in read-only mode for security reasons.
+    ''',
+    dependencies=['loguru', 'boto3', 'pydantic', 'psycopg2-binary'],
 )
 
 
-@mcp.tool(name='run_query', description='Run a SQL query using boto3 execute_statement')
+@mcp.tool(name='run_query', description='Run a SQL query against a PostgreSQL database')
 async def run_query(
     sql: Annotated[str, Field(description='The SQL query to run')],
     ctx: Context,
@@ -193,7 +208,7 @@ async def run_query(
         Optional[List[Dict[str, Any]]], Field(description='Parameters for the SQL query')
     ] = None,
 ) -> list[dict]:  # type: ignore
-    """Run a SQL query using boto3 execute_statement.
+    """Run a SQL query against a PostgreSQL database.
 
     Args:
         sql: The sql statement to run
@@ -217,6 +232,7 @@ async def run_query(
             logger.info(
                 f'query is rejected because current setting only allows readonly query. detected keywords: {matches}, SQL query: {sql}'
             )
+
             await ctx.error(write_query_prohibited_key)
             return [{'error': write_query_prohibited_key}]
 
@@ -233,25 +249,20 @@ async def run_query(
     try:
         logger.info(f'run_query: readonly:{db_connection.readonly_query}, SQL:{sql}')
 
-        if db_connection.readonly_query:
-            response = await asyncio.to_thread(
-                execute_readonly_query, db_connection, sql, query_parameters
-            )
-        else:
-            execute_params = {
-                'resourceArn': db_connection.cluster_arn,
-                'secretArn': db_connection.secret_arn,
-                'database': db_connection.database,
-                'sql': sql,
-                'includeResultMetadata': True,
-            }
+        execute_params = {
+            'resourceArn': db_connection.cluster_arn,
+            'secretArn': db_connection.secret_arn,
+            'database': db_connection.database,
+            'sql': sql,
+            'includeResultMetadata': True,
+        }
 
-            if query_parameters:
-                execute_params['parameters'] = query_parameters
+        if query_parameters:
+            execute_params['parameters'] = query_parameters
 
-            response = await asyncio.to_thread(
-                db_connection.data_client.execute_statement, **execute_params
-            )
+        response = await asyncio.to_thread(
+            db_connection.data_client.execute_statement, **execute_params
+        )
 
         logger.success('run_query successfully executed query:{}', sql)
         return parse_execute_response(response)
@@ -270,15 +281,18 @@ async def run_query(
 
 @mcp.tool(
     name='get_table_schema',
-    description='Fetch table columns and comments from Postgres using RDS Data API',
+    description='Fetch table schema from the PostgreSQL database',
 )
 async def get_table_schema(
-    table_name: Annotated[str, Field(description='name of the table')], ctx: Context
+    table_name: Annotated[str, Field(description='name of the table')],
+    database_name: Annotated[str, Field(description='name of the database')],
+    ctx: Context,
 ) -> list[dict]:
     """Get a table's schema information given the table name.
 
     Args:
         table_name: name of the table
+        database_name: name of the database
         ctx: MCP context for logging and state management
 
     Returns:
@@ -288,83 +302,27 @@ async def get_table_schema(
 
     sql = """
         SELECT
-            a.attname AS column_name,
-            pg_catalog.format_type(a.atttypid, a.atttypmod) AS data_type,
-            col_description(a.attrelid, a.attnum) AS column_comment
+            column_name,
+            data_type,
+            is_nullable,
+            column_default,
+            character_maximum_length,
+            numeric_precision,
+            numeric_scale
         FROM
-            pg_attribute a
+            information_schema.columns
         WHERE
-            a.attrelid = :table_name::regclass
-            AND a.attnum > 0
-            AND NOT a.attisdropped
-        ORDER BY a.attnum
+            table_schema = :database_name
+            AND table_name = :table_name
+        ORDER BY
+            ordinal_position
     """
-
-    params = [{'name': 'table_name', 'value': {'stringValue': table_name}}]
+    params = [
+        {'name': 'table_name', 'value': {'stringValue': table_name}},
+        {'name': 'database_name', 'value': {'stringValue': database_name}},
+    ]
 
     return await run_query(sql=sql, ctx=ctx, query_parameters=params)
-
-
-def execute_readonly_query(
-    db_connection: DBConnection, query: str, parameters: Optional[List[Dict[str, Any]]] = None
-) -> dict:
-    """Execute a query under readonly transaction.
-
-    Args:
-        db_connection: connection object
-        query: query to run
-        parameters: parameters
-
-    Returns:
-        List of dictionary that contains query response rows
-    """
-    tx_id = ''
-    try:
-        # Begin read-only transaction
-        tx = db_connection.data_client.begin_transaction(
-            resourceArn=db_connection.cluster_arn,
-            secretArn=db_connection.secret_arn,
-            database=db_connection.database,
-        )
-
-        tx_id = tx['transactionId']
-
-        db_connection.data_client.execute_statement(
-            resourceArn=db_connection.cluster_arn,
-            secretArn=db_connection.secret_arn,
-            database=db_connection.database,
-            sql='SET TRANSACTION READ ONLY',
-            transactionId=tx_id,
-        )
-
-        execute_params = {
-            'resourceArn': db_connection.cluster_arn,
-            'secretArn': db_connection.secret_arn,
-            'database': db_connection.database,
-            'sql': query,
-            'includeResultMetadata': True,
-            'transactionId': tx_id,
-        }
-
-        if parameters is not None:
-            execute_params['parameters'] = parameters
-
-        result = db_connection.data_client.execute_statement(**execute_params)
-
-        db_connection.data_client.commit_transaction(
-            resourceArn=db_connection.cluster_arn,
-            secretArn=db_connection.secret_arn,
-            transactionId=tx_id,
-        )
-        return result
-    except Exception as e:
-        if tx_id:
-            db_connection.data_client.rollback_transaction(
-                resourceArn=db_connection.cluster_arn,
-                secretArn=db_connection.secret_arn,
-                transactionId=tx_id,
-            )
-        raise e
 
 
 def main():
@@ -373,7 +331,7 @@ def main():
 
     """Run the MCP server with CLI argument support."""
     parser = argparse.ArgumentParser(
-        description='An AWS Labs Model Context Protocol (MCP) server for postgres'
+        description='An AWS Labs Model Context Protocol (MCP) server for PostgreSQL'
     )
     parser.add_argument('--resource_arn', required=True, help='ARN of the RDS cluster')
     parser.add_argument(
@@ -391,7 +349,7 @@ def main():
     args = parser.parse_args()
 
     logger.info(
-        'Postgres MCP init with CLUSTER_ARN:{}, SECRET_ARN:{}, REGION:{}, DATABASE:{}, READONLY:{}',
+        'PostgreSQL MCP init with CLUSTER_ARN:{}, SECRET_ARN:{}, REGION:{}, DATABASE:{}, READONLY:{}',
         args.resource_arn,
         args.secret_arn,
         args.region,
@@ -404,7 +362,7 @@ def main():
             args.resource_arn, args.secret_arn, args.database, args.region, args.readonly
         )
     except BotoCoreError:
-        logger.exception('Failed to RDS API client object for Postgres. Exit the MCP server')
+        logger.exception('Failed to RDS API client object for PostgreSQL. Exit the MCP server')
         sys.exit(1)
 
     # Test RDS API connection
@@ -416,12 +374,16 @@ def main():
         and isinstance(response[0], dict)
         and 'error' in response[0]
     ):
-        logger.error('Failed to validate RDS API db connection to Postgres. Exit the MCP server')
+        logger.error('Failed to validate RDS API db connection to PostgreSQL. Exit the MCP server')
         sys.exit(1)
 
-    logger.success('Successfully validated RDS API db connection to Postgres')
+    logger.success('Successfully validated RDS API db connection to PostgreSQL')
 
-    logger.info('Starting Postgres MCP server')
+    # Register additional tools
+    register_all_tools(mcp)
+    
+    # Run server with appropriate transport
+    logger.info('Starting PostgreSQL MCP server')
     mcp.run()
 
 
