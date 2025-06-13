@@ -19,8 +19,8 @@ from typing import Dict, Any, Optional, Tuple
 
 from mcp.server.fastmcp import Context
 
-from awslabs.postgresql_mcp_server.db.connector import UniversalConnector
-from awslabs.postgresql_mcp_server.session_handler import session_handler
+from awslabs.postgres_mcp_server.db.connector import UniversalConnector
+from awslabs.postgres_mcp_server.session_handler import session_handler
 
 logger = logging.getLogger("postgresql-mcp-server")
 

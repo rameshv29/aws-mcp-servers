@@ -17,7 +17,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from awslabs.postgresql_mcp_server.tools import (
+from awslabs.postgres_mcp_server.server import (
     register_all_tools,
     format_bytes,
 )

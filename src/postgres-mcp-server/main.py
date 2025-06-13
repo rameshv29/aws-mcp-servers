@@ -15,7 +15,7 @@
 
 """Main entry point for the PostgreSQL MCP Server."""
 
-from awslabs.postgresql_mcp_server.server import main
+from awslabs.postgres_mcp_server.server import main
 
 if __name__ == "__main__":
     main()

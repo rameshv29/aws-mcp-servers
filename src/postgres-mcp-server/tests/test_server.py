@@ -15,7 +15,7 @@
 """Tests for the PostgreSQL MCP Server."""
 
 import pytest
-from awslabs.postgresql_mcp_server.server import (
+from awslabs.postgres_mcp_server.server import (
     DBConnection,
     DBConnectionSingleton,
     extract_cell,
@@ -278,7 +278,7 @@ class TestGetTableSchema:
     """Tests for the get_table_schema function."""
 
     @pytest.mark.asyncio
-    @patch('awslabs.postgresql_mcp_server.server.run_query')
+    @patch('awslabs.postgres_mcp_server.server.run_query')
     async def test_get_table_schema(self, mock_run_query):
         """Test getting a table schema."""
         # Mock context
