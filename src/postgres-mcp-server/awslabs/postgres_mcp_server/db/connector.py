@@ -66,8 +66,15 @@ class UniversalConnector:
     
     def connect(self):
         """
-        Connect to the database using either RDS Data API or PostgreSQL connector
-        based on available credentials
+        Connect to the database using either direct PostgreSQL connection or RDS Data API
+        based on available credentials.
+        
+        Connection strategy:
+        1. If resource_arn is explicitly provided, use RDS Data API directly
+        2. If secret_name/secret_arn is provided (without explicit resource_arn):
+           - Try direct PostgreSQL connection first if parameters are available
+           - Fall back to RDS Data API if direct connection fails(Recommended)
+        3. If direct connection parameters are provided, use PostgreSQL connection
         """
         print("Attempting to connect to database...")
         
@@ -111,7 +118,15 @@ class UniversalConnector:
                     secret = json.loads(decoded_binary_secret)
                     print("Retrieved secret in binary format")
                 
-                # Check for RDS Data API parameters with various possible key names
+                # Extract all possible connection parameters from the secret
+                # Direct connection parameters
+                self.host = secret.get('host', self.host)
+                self.port = secret.get('port', self.port) or 5432
+                self.database = secret.get('dbname', secret.get('database', self.database))
+                self.user = secret.get('username', secret.get('user', self.user))
+                self.password = secret.get('password', self.password)
+                
+                # RDS Data API parameters (store but don't use yet)
                 rds_api_keys = [
                     ('resourceArn', 'secretArn'),
                     ('resource_arn', 'secret_arn'),
@@ -121,39 +136,39 @@ class UniversalConnector:
                     ('ClusterArn', 'SecretArn')
                 ]
                 
+                rds_resource_arn = None
+                rds_secret_arn = None
+                
                 # Check if any of the RDS Data API key pairs exist in the secret
                 for resource_key, secret_key in rds_api_keys:
                     if resource_key in secret and secret_key in secret:
                         print(f"Found RDS Data API parameters in secret: {resource_key}, {secret_key}")
-                        self.resource_arn = secret.get(resource_key)
-                        self.secret_arn = secret.get(secret_key)
-                        self.database = secret.get('database', secret.get('dbname', self.database))
-                        
-                        if self._connect_rds_data_api():
-                            self.connection_mode = 'rds_data_api'
-                            print(f"Connected to RDS database using Data API with credentials from secret: {self.database}")
-                            return True
-                        else:
-                            print("RDS Data API connection with credentials from secret failed")
-                            # Don't fall back to PostgreSQL if we found RDS Data API parameters
-                            return False
+                        rds_resource_arn = secret.get(resource_key)
+                        rds_secret_arn = secret.get(secret_key)
+                        break
                 
-                # If no RDS Data API parameters found, try PostgreSQL connector
-                print("No RDS Data API parameters found, trying PostgreSQL connector with credentials from secret")
-                self.host = secret.get('host', self.host)
-                self.port = secret.get('port', self.port) or 5432
-                self.database = secret.get('dbname', secret.get('database', self.database))
-                self.user = secret.get('username', secret.get('user', self.user))
-                self.password = secret.get('password', self.password)
+                # Try direct connection first if we have the parameters
+                if all([self.host, self.database, self.user, self.password]):
+                    print(f"Trying direct PostgreSQL connection with parameters from secret: host={self.host}")
+                    if self._connect_postgresql():
+                        self.connection_mode = 'pg_connector'
+                        print(f"Connected to PostgreSQL database using direct connection: {self.database} at {self.host}")
+                        return True
+                    else:
+                        print("Direct PostgreSQL connection with parameters from secret failed")
                 
-                print(f"PostgreSQL connection parameters from secret: host={self.host}, port={self.port}, database={self.database}, user={self.user}")
-                
-                if self._connect_postgresql():
-                    self.connection_mode = 'pg_connector'
-                    print(f"Connected to PostgreSQL database using direct connection: {self.database} at {self.host}")
-                    return True
-                else:
-                    print("PostgreSQL connection with credentials from secret failed")
+                # Fall back to RDS Data API if direct connection failed and we have RDS API parameters
+                if rds_resource_arn and rds_secret_arn:
+                    print(f"Falling back to RDS Data API connection")
+                    self.resource_arn = rds_resource_arn
+                    self.secret_arn = rds_secret_arn
+                    
+                    if self._connect_rds_data_api():
+                        self.connection_mode = 'rds_data_api'
+                        print(f"Connected to RDS database using Data API with credentials from secret: {self.database}")
+                        return True
+                    else:
+                        print("RDS Data API connection with credentials from secret failed")
             
             except Exception as e:
                 print(f"Error retrieving secret or connecting: {str(e)}")
