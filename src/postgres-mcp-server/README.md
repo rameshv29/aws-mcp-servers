@@ -72,6 +72,22 @@ For full functionality, the following PostgreSQL extensions should be enabled:
   3. Restart the instance
   4. Run `CREATE EXTENSION pg_stat_statements;`
 
+## Connection Pool
+
+The server implements a connection pool for PostgreSQL connections to improve performance and resource utilization. The connection pool:
+
+- Maintains a minimum number of database connections
+- Limits the maximum number of concurrent connections
+- Reuses connections across sessions
+- Automatically handles connection lifecycle
+
+### Connection Pool Configuration
+
+You can configure the connection pool using environment variables:
+
+- `POSTGRES_POOL_MIN_SIZE`: Minimum number of connections to keep in the pool (default: 5)
+- `POSTGRES_POOL_MAX_SIZE`: Maximum number of connections allowed in the pool (default: 30)
+
 ## Running the Server
 
 ### Locally with Python
@@ -81,6 +97,11 @@ cd postgres-mcp-server
 python3.10 -m venv .venv
 source .venv/bin/activate
 python3.10 -m pip install -r requirements.txt
+
+# Optional: Configure connection pool
+export POSTGRES_POOL_MIN_SIZE=10
+export POSTGRES_POOL_MAX_SIZE=50
+
 python3.10 -m awslabs.postgresql_mcp_server.main
 ```
 
@@ -93,6 +114,8 @@ docker run -p 8000:8000 \
   -e AWS_ACCESS_KEY_ID=<your aws access key> \
   -e AWS_SECRET_ACCESS_KEY=<your aws secret access key> \
   -e AWS_SESSION_TOKEN=<your aws session token> \
+  -e POSTGRES_POOL_MIN_SIZE=5 \
+  -e POSTGRES_POOL_MAX_SIZE=30 \
   postgres-mcp-server
 ```
 

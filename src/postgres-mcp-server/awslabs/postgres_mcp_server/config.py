@@ -15,7 +15,12 @@
 import logging
 import asyncio
 import time
+import os
 from contextlib import asynccontextmanager
+
+# Connection pool configuration
+POSTGRES_POOL_MIN_SIZE = int(os.environ.get('POSTGRES_POOL_MIN_SIZE', '5'))
+POSTGRES_POOL_MAX_SIZE = int(os.environ.get('POSTGRES_POOL_MAX_SIZE', '30'))
 
 class SessionHandler:
     def __init__(self, session_timeout=1800):
@@ -112,6 +117,7 @@ async def server_lifespan(app):
     # Server startup
     logger = logging.getLogger("postgresql-mcp-server")
     logger.info("Starting PostgreSQL MCP server")
+    logger.info(f"Connection pool configuration: min_size={POSTGRES_POOL_MIN_SIZE}, max_size={POSTGRES_POOL_MAX_SIZE}")
     
     # Start the session handler
     await session_handler.start()
@@ -120,6 +126,15 @@ async def server_lifespan(app):
     
     # Server shutdown
     logger.info("Shutting down PostgreSQL MCP server")
+    
+    # Close the connection pool
+    try:
+        from awslabs.postgres_mcp_server.db.pool_manager import PostgresConnectionPool
+        pool = PostgresConnectionPool.get_instance()
+        pool.close()
+        logger.info("Connection pool closed")
+    except Exception as e:
+        logger.error(f"Error closing connection pool: {str(e)}")
     
     # Stop the session handler
     await session_handler.stop()

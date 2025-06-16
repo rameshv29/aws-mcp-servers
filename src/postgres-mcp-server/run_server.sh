@@ -13,6 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Default connection pool configuration
+export POSTGRES_POOL_MIN_SIZE=${POSTGRES_POOL_MIN_SIZE:-5}
+export POSTGRES_POOL_MAX_SIZE=${POSTGRES_POOL_MAX_SIZE:-30}
+
+# Log the connection pool configuration
+echo "PostgreSQL Connection Pool Configuration:"
+echo "  - Minimum connections: $POSTGRES_POOL_MIN_SIZE"
+echo "  - Maximum connections: $POSTGRES_POOL_MAX_SIZE"
+
 # Run the PostgreSQL MCP server with proper initialization
-cd /Users/reachrk/Downloads/postgresql-mcp-server
+cd "$(dirname "$0")"
 python -m awslabs.postgresql_mcp_server.main --host 0.0.0.0 --port 8000 --session-timeout 1800 --request-timeout 300

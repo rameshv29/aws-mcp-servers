@@ -21,6 +21,8 @@ from mcp.server.fastmcp import Context
 
 from awslabs.postgres_mcp_server.db.connector import UniversalConnector
 from awslabs.postgres_mcp_server.session_handler import session_handler
+from awslabs.postgres_mcp_server.config import POSTGRES_POOL_MIN_SIZE, POSTGRES_POOL_MAX_SIZE
+from awslabs.postgres_mcp_server.db.pool_manager import PostgresConnectionPool
 
 logger = logging.getLogger("postgresql-mcp-server")
 
@@ -190,3 +192,16 @@ async def close_connection(ctx: Context) -> bool:
         return True
     
     return False
+
+async def shutdown_pool():
+    """
+    Shutdown the connection pool.
+    This should be called when shutting down the server.
+    """
+    logger = logging.getLogger("postgresql-mcp-server")
+    try:
+        pool = PostgresConnectionPool.get_instance()
+        pool.close()
+        logger.info("Connection pool closed during shutdown")
+    except Exception as e:
+        logger.error(f"Error closing connection pool during shutdown: {str(e)}")

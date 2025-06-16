@@ -75,6 +75,10 @@ ENV AWS_ACCESS_KEY_ID=""
 ENV AWS_SECRET_ACCESS_KEY=""
 ENV AWS_SESSION_TOKEN=""
 
+# Set default connection pool configuration
+ENV POSTGRES_POOL_MIN_SIZE="5"
+ENV POSTGRES_POOL_MAX_SIZE="30"
+
 # Run as non-root
 USER app
 

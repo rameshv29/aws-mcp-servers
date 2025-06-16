@@ -18,6 +18,9 @@ import boto3
 import base64
 from typing import List, Dict, Any, Optional
 
+from awslabs.postgres_mcp_server.db.pool_manager import PostgresConnectionPool
+from awslabs.postgres_mcp_server.config import POSTGRES_POOL_MIN_SIZE, POSTGRES_POOL_MAX_SIZE
+
 class UniversalConnector:
     def __init__(self, secret_name=None, region_name=None, 
                  secret_arn=None, resource_arn=None, database=None,
@@ -215,7 +218,7 @@ class UniversalConnector:
             return False
     
     def _connect_postgresql(self):
-        """Connect to PostgreSQL database using direct connection"""
+        """Connect to PostgreSQL database using connection pool"""
         try:
             if not all([self.host, self.database, self.user, self.password]):
                 print("Missing required PostgreSQL connection parameters")
@@ -223,8 +226,10 @@ class UniversalConnector:
             
             print(f"Attempting PostgreSQL connection to {self.host}:{self.port or 5432}, database={self.database}, user={self.user}")
             
-            # Connect to the database with a timeout
-            self.pg_conn = psycopg2.connect(
+            # Get connection pool instance
+            pool = PostgresConnectionPool.get_instance(
+                min_size=POSTGRES_POOL_MIN_SIZE,
+                max_size=POSTGRES_POOL_MAX_SIZE,
                 host=self.host,
                 port=self.port or 5432,
                 dbname=self.database,
@@ -232,6 +237,12 @@ class UniversalConnector:
                 password=self.password,
                 connect_timeout=10  # 10-second connection timeout
             )
+            
+            # Initialize pool if not already initialized
+            pool.initialize()
+            
+            # Get a connection from the pool
+            self.pg_conn = pool.get_connection()
             
             # Set session to read-only mode for safety
             if self.read_only:
@@ -256,20 +267,22 @@ class UniversalConnector:
             return False
     
     def disconnect(self):
-        """Close the database connection"""
+        """Return the connection to the pool instead of closing it"""
         if self.connection_mode == 'rds_data_api':
             # No explicit disconnect needed for RDS Data API
             self.rds_client = None
         elif self.connection_mode == 'pg_connector':
             if self.pg_conn:
                 try:
-                    self.pg_conn.close()
+                    # Return connection to the pool instead of closing
+                    pool = PostgresConnectionPool.get_instance()
+                    pool.release_connection(self.pg_conn)
                 except Exception as e:
-                    print(f"Error closing PostgreSQL connection: {str(e)}")
+                    print(f"Error returning PostgreSQL connection to pool: {str(e)}")
                 self.pg_conn = None
         
         self.connection_mode = None
-        print("Database connection closed")
+        print("Database connection returned to pool")
     
     def execute_query(self, query, params=None):
         """
