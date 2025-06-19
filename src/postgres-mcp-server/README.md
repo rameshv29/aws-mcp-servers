@@ -23,15 +23,47 @@ This MCP server provides tools for interacting with PostgreSQL databases, includ
 
 ## Connection Options
 
-The server uses **AWS RDS Data API** for secure, serverless database connections:
+The server supports multiple connection methods:
 
-### AWS RDS Data API (Current Implementation)
+### 1. AWS RDS Data API (Recommended)
 
 - `resource_arn`: ARN of the RDS cluster or instance
 - `secret_arn`: ARN of the secret in AWS Secrets Manager containing credentials
 - `database`: Database name to connect to
 - `region`: AWS region where the resources are located
 - `readonly`: Enforce read-only operations (recommended: "true")
+
+**Usage:**
+```bash
+python -m awslabs.postgres_mcp_server.server \
+  --resource_arn "arn:aws:rds:region:account:cluster:cluster-name" \
+  --secret_arn "arn:aws:secretsmanager:region:account:secret:secret-name" \
+  --database "your-database-name" \
+  --region "us-west-2" \
+  --readonly "true"
+```
+
+### 2. Direct PostgreSQL Connection
+
+- `hostname`: Database hostname or IP address
+- `port`: Database port (default: 5432)
+- `secret_arn`: ARN of the secret in AWS Secrets Manager containing credentials
+- `database`: Database name to connect to
+- `region`: AWS region where the secret is stored
+- `readonly`: Enforce read-only operations (recommended: "true")
+
+**Usage:**
+```bash
+python -m awslabs.postgres_mcp_server.server \
+  --hostname "your-db-host.amazonaws.com" \
+  --port 5432 \
+  --secret_arn "arn:aws:secretsmanager:region:account:secret:secret-name" \
+  --database "your-database-name" \
+  --region "us-west-2" \
+  --readonly "true"
+```
+
+**Note:** Direct PostgreSQL connection uses the connection modules in the codebase but requires integration work to be fully functional with the current server implementation. Currently, only RDS Data API is fully integrated.
 
 ## Prerequisites
 

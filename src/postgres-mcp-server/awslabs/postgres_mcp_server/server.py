@@ -943,19 +943,47 @@ def main():
     parser = argparse.ArgumentParser(
         description='PostgreSQL MCP Server'
     )
-    parser.add_argument('--resource_arn', required=True, help='ARN of the RDS cluster')
+    
+    # Connection method 1: RDS Data API
+    parser.add_argument('--resource_arn', help='ARN of the RDS cluster (for RDS Data API)')
+    
+    # Connection method 2: Direct PostgreSQL
+    parser.add_argument('--hostname', help='Database hostname (for direct PostgreSQL connection)')
+    parser.add_argument('--port', type=int, default=5432, help='Database port (default: 5432)')
+    
+    # Common parameters
     parser.add_argument('--secret_arn', required=True, help='ARN of the Secrets Manager secret for database credentials')
     parser.add_argument('--database', required=True, help='Database name')
-    parser.add_argument('--region', required=True, help='AWS region for RDS Data API')
+    parser.add_argument('--region', required=True, help='AWS region')
     parser.add_argument('--readonly', required=True, help='Enforce readonly SQL statements')
+    
     args = parser.parse_args()
 
-    logger.info(f'PostgreSQL MCP Server starting with CLUSTER_ARN:{args.resource_arn}, DATABASE:{args.database}, READONLY:{args.readonly}')
+    # Validate connection parameters
+    if not args.resource_arn and not args.hostname:
+        parser.error("Either --resource_arn (for RDS Data API) or --hostname (for direct PostgreSQL) must be provided")
+    
+    if args.resource_arn and args.hostname:
+        parser.error("Cannot specify both --resource_arn and --hostname. Choose one connection method.")
+
+    connection_type = "RDS Data API" if args.resource_arn else "Direct PostgreSQL"
+    connection_target = args.resource_arn if args.resource_arn else f"{args.hostname}:{args.port}"
+    
+    logger.info(f'PostgreSQL MCP Server starting with {connection_type} connection to {connection_target}, DATABASE:{args.database}, READONLY:{args.readonly}')
 
     try:
-        DBConnectionSingleton.initialize(
-            args.resource_arn, args.secret_arn, args.database, args.region, args.readonly == 'true'
-        )
+        if args.resource_arn:
+            # RDS Data API connection
+            DBConnectionSingleton.initialize(
+                args.resource_arn, args.secret_arn, args.database, args.region, args.readonly == 'true'
+            )
+        else:
+            # Direct PostgreSQL connection - we need to implement this
+            logger.error("Direct PostgreSQL connection not yet integrated with current server implementation")
+            logger.error("The connection modules exist but are not integrated with the main server")
+            logger.error("Please use --resource_arn for RDS Data API connection for now")
+            sys.exit(1)
+            
     except BotoCoreError:
         logger.exception('Failed to create RDS API client. Exiting.')
         sys.exit(1)
