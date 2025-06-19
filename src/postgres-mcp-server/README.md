@@ -63,7 +63,7 @@ python -m awslabs.postgres_mcp_server.server \
   --readonly "true"
 ```
 
-**Note:** Direct PostgreSQL connection uses the connection modules in the codebase but requires integration work to be fully functional with the current server implementation. Currently, only RDS Data API is fully integrated.
+**Note:** Both connection methods are fully integrated and functional. The server automatically determines the connection type based on the parameters provided.
 
 ## Prerequisites
 

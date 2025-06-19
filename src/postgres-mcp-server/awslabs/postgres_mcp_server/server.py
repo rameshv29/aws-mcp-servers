@@ -24,9 +24,12 @@ from typing import Annotated, Any, Dict, List, Optional
 from loguru import logger
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import Field
-from botocore.exceptions import BotoCoreError, ClientError
+from botocore.exceptions import BotoCoreError
 
-from .mutable_sql_detector import check_sql_injection_risk, detect_mutating_keywords
+from .unified_connection import UnifiedDBConnectionSingleton
+from .connection.connection_factory import ConnectionFactory
+from .mutable_sql_detector import detect_mutating_keywords, check_sql_injection_risk
+from botocore.exceptions import ClientError
 
 
 # Error message constants
@@ -35,58 +38,8 @@ UNEXPECTED_ERROR_KEY = 'run_query unexpected error'
 WRITE_QUERY_PROHIBITED_KEY = 'Your MCP tool only allows readonly query. If you want to write, change the MCP configuration per README.md'
 QUERY_INJECTION_RISK_KEY = 'Your query contains risky injection patterns'
 
-
-class DBConnection:
-    """Class that wraps DB connection client by RDS API."""
-
-    def __init__(self, cluster_arn, secret_arn, database, region, readonly, is_test=False):
-        """Initialize a new DB connection."""
-        self.cluster_arn = cluster_arn
-        self.secret_arn = secret_arn
-        self.database = database
-        self.readonly = readonly
-        if not is_test:
-            self.data_client = boto3.client('rds-data', region_name=region)
-
-    @property
-    def readonly_query(self):
-        """Get whether this connection is read-only."""
-        return self.readonly
-
-
-class DBConnectionSingleton:
-    """Manages a single DBConnection instance across the application."""
-
-    _instance = None
-
-    def __init__(self, resource_arn, secret_arn, database, region, readonly, is_test=False):
-        """Initialize a new DB connection singleton."""
-        if not all([resource_arn, secret_arn, database, region]):
-            raise ValueError(
-                'Missing required connection parameters. '
-                'Please provide resource_arn, secret_arn, database, and region.'
-            )
-        self._db_connection = DBConnection(
-            resource_arn, secret_arn, database, region, readonly, is_test
-        )
-
-    @classmethod
-    def initialize(cls, resource_arn, secret_arn, database, region, readonly, is_test=False):
-        """Initialize the singleton instance if it doesn't exist."""
-        if cls._instance is None:
-            cls._instance = cls(resource_arn, secret_arn, database, region, readonly, is_test)
-
-    @classmethod
-    def get(cls):
-        """Get the singleton instance."""
-        if cls._instance is None:
-            raise RuntimeError('DBConnectionSingleton is not initialized.')
-        return cls._instance
-
-    @property
-    def db_connection(self):
-        """Get the database connection."""
-        return self._db_connection
+# Initialize MCP server
+mcp = FastMCP("PostgreSQL MCP Server")
 
 
 def extract_cell(cell: dict):
@@ -118,64 +71,7 @@ def parse_execute_response(response: dict) -> list[dict]:
     return records
 
 
-def execute_readonly_query(
-    db_connection: DBConnection, query: str, parameters: Optional[List[Dict[str, Any]]] = None
-) -> dict:
-    """Execute a query under readonly transaction."""
-    tx_id = ''
-    try:
-        # Begin read-only transaction
-        tx = db_connection.data_client.begin_transaction(
-            resourceArn=db_connection.cluster_arn,
-            secretArn=db_connection.secret_arn,
-            database=db_connection.database,
-        )
-
-        tx_id = tx['transactionId']
-
-        db_connection.data_client.execute_statement(
-            resourceArn=db_connection.cluster_arn,
-            secretArn=db_connection.secret_arn,
-            database=db_connection.database,
-            sql='SET TRANSACTION READ ONLY',
-            transactionId=tx_id,
-        )
-
-        execute_params = {
-            'resourceArn': db_connection.cluster_arn,
-            'secretArn': db_connection.secret_arn,
-            'database': db_connection.database,
-            'sql': query,
-            'includeResultMetadata': True,
-            'transactionId': tx_id,
-        }
-
-        if parameters is not None:
-            execute_params['parameters'] = parameters
-
-        result = db_connection.data_client.execute_statement(**execute_params)
-
-        db_connection.data_client.commit_transaction(
-            resourceArn=db_connection.cluster_arn,
-            secretArn=db_connection.secret_arn,
-            transactionId=tx_id,
-        )
-        return result
-    except Exception as e:
-        if tx_id:
-            db_connection.data_client.rollback_transaction(
-                resourceArn=db_connection.cluster_arn,
-                secretArn=db_connection.secret_arn,
-                transactionId=tx_id,
-            )
-        raise e
-
-
-# Initialize FastMCP server
-mcp = FastMCP('PostgreSQL MCP Server with Database Analysis Tools')
-
-
-@mcp.tool(name='run_query', description='Run a SQL query using boto3 execute_statement')
+@mcp.tool(name='run_query', description='Run a SQL query using unified database connection')
 async def run_query(
     sql: Annotated[str, Field(description='The SQL query to run')],
     ctx: Context,
@@ -183,9 +79,9 @@ async def run_query(
         Optional[List[Dict[str, Any]]], Field(description='Parameters for the SQL query')
     ] = None,
 ) -> list[dict]:
-    """Run a SQL query using boto3 execute_statement."""
+    """Run a SQL query using unified database connection (RDS Data API or Direct PostgreSQL)."""
     try:
-        db_connection = DBConnectionSingleton.get().db_connection
+        db_connection = UnifiedDBConnectionSingleton.get().db_connection
     except Exception as e:
         await ctx.error(f"No database connection available. Please configure the database first: {str(e)}")
         return [{'error': 'No database connection available'}]
@@ -204,34 +100,13 @@ async def run_query(
         return [{'error': QUERY_INJECTION_RISK_KEY}]
 
     try:
-        logger.info(f'run_query: readonly:{db_connection.readonly_query}, SQL:{sql}')
+        logger.info(f'run_query: connection_type:{db_connection.connection_type}, readonly:{db_connection.readonly_query}, SQL:{sql}')
 
-        if db_connection.readonly_query:
-            response = await asyncio.to_thread(
-                execute_readonly_query, db_connection, sql, query_parameters
-            )
-        else:
-            execute_params = {
-                'resourceArn': db_connection.cluster_arn,
-                'secretArn': db_connection.secret_arn,
-                'database': db_connection.database,
-                'sql': sql,
-                'includeResultMetadata': True,
-            }
-
-            if query_parameters:
-                execute_params['parameters'] = query_parameters
-
-            response = await asyncio.to_thread(
-                db_connection.data_client.execute_statement, **execute_params
-            )
+        # Use unified connection to execute query
+        response = await db_connection.execute_query(sql, query_parameters)
 
         logger.success('Query executed successfully')
         return parse_execute_response(response)
-    except ClientError as e:
-        logger.exception(CLIENT_ERROR_KEY)
-        await ctx.error(str({'code': e.response['Error']['Code'], 'message': e.response['Error']['Message']}))
-        return [{'error': CLIENT_ERROR_KEY}]
     except Exception as e:
         logger.exception(UNEXPECTED_ERROR_KEY)
         error_details = f'{type(e).__name__}: {str(e)}'
@@ -665,27 +540,32 @@ async def health_check(ctx: Context) -> Dict[str, Any]:
     try:
         # Test database connectivity
         connection_test = False
+        connection_type = "Unknown"
         try:
-            db_connection = DBConnectionSingleton.get().db_connection
+            db_connection = UnifiedDBConnectionSingleton.get().db_connection
+            connection_type = db_connection.connection_type
             test_result = await run_query("SELECT 1 as health_check", ctx)
             connection_test = len(test_result) > 0 and 'error' not in test_result[0]
         except Exception as e:
             logger.warning(f"Health check database test failed: {str(e)}")
         
+        database_type = f"PostgreSQL via {connection_type.replace('_', ' ').title()}"
+        
         return {
             "status": "healthy" if connection_test else "unhealthy",
-            "timestamp": "2025-06-19T14:10:00Z",
+            "timestamp": "2025-06-19T15:00:00Z",
             "database_connection": connection_test,
-            "server_version": "consolidated-v1.0",
+            "server_version": "unified-v1.0",
             "tools_available": 10,
-            "database_type": "PostgreSQL via RDS Data API"
+            "database_type": database_type,
+            "connection_type": connection_type
         }
         
     except Exception as e:
         return {
             "status": "unhealthy",
             "error": str(e),
-            "timestamp": "2025-06-19T14:10:00Z"
+            "timestamp": "2025-06-19T15:00:00Z"
         }
 
 
@@ -966,29 +846,35 @@ def main():
     if args.resource_arn and args.hostname:
         parser.error("Cannot specify both --resource_arn and --hostname. Choose one connection method.")
 
-    connection_type = "RDS Data API" if args.resource_arn else "Direct PostgreSQL"
-    connection_target = args.resource_arn if args.resource_arn else f"{args.hostname}:{args.port}"
+    # Determine connection type using ConnectionFactory
+    connection_type = ConnectionFactory.determine_connection_type(
+        resource_arn=args.resource_arn,
+        hostname=args.hostname
+    )
     
-    logger.info(f'PostgreSQL MCP Server starting with {connection_type} connection to {connection_target}, DATABASE:{args.database}, READONLY:{args.readonly}')
+    connection_target = args.resource_arn if args.resource_arn else f"{args.hostname}:{args.port}"
+    connection_display = connection_type.replace('_', ' ').title()
+    
+    logger.info(f'PostgreSQL MCP Server starting with {connection_display} connection to {connection_target}, DATABASE:{args.database}, READONLY:{args.readonly}')
 
     try:
-        if args.resource_arn:
-            # RDS Data API connection
-            DBConnectionSingleton.initialize(
-                args.resource_arn, args.secret_arn, args.database, args.region, args.readonly == 'true'
-            )
-        else:
-            # Direct PostgreSQL connection - we need to implement this
-            logger.error("Direct PostgreSQL connection not yet integrated with current server implementation")
-            logger.error("The connection modules exist but are not integrated with the main server")
-            logger.error("Please use --resource_arn for RDS Data API connection for now")
-            sys.exit(1)
+        # Initialize unified connection
+        UnifiedDBConnectionSingleton.initialize(
+            connection_type=connection_type,
+            resource_arn=args.resource_arn,
+            hostname=args.hostname,
+            port=args.port,
+            secret_arn=args.secret_arn,
+            database=args.database,
+            region=args.region,
+            readonly=args.readonly == 'true'
+        )
             
-    except BotoCoreError:
-        logger.exception('Failed to create RDS API client. Exiting.')
+    except Exception as e:
+        logger.exception(f'Failed to initialize {connection_display} connection. Exiting.')
         sys.exit(1)
 
-    # Test RDS API connection
+    # Test database connection
     class DummyCtx:
         async def error(self, message):
             pass
@@ -996,10 +882,10 @@ def main():
     ctx = DummyCtx()
     response = asyncio.run(run_query('SELECT 1', ctx))
     if isinstance(response, list) and len(response) == 1 and isinstance(response[0], dict) and 'error' in response[0]:
-        logger.error('Failed to validate RDS API db connection. Exiting.')
+        logger.error(f'Failed to validate {connection_display} database connection. Exiting.')
         sys.exit(1)
 
-    logger.success('Successfully validated RDS API db connection')
+    logger.success(f'Successfully validated {connection_display} database connection')
     logger.info('Starting PostgreSQL MCP Server with stdio transport')
     mcp.run(transport="stdio")
 
