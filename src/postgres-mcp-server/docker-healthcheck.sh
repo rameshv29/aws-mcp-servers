@@ -1,5 +1,4 @@
-#!/bin/sh
-
+#!/bin/bash
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if [ "$(lsof +c 0 -p 1 | grep -e "^awslabs\..*\s1\s.*\sunix\s.*socket$" | wc -l)" -ne "0" ]; then
-  echo -n "$(lsof +c 0 -p 1 | grep -e "^awslabs\..*\s1\s.*\sunix\s.*socket$" | wc -l) awslabs.* streams found";
-  exit 0;
-else
-  echo -n "Zero awslabs.* streams found";
-  exit 1;
-fi;
+set -eo pipefail
 
-echo -n "Never should reach here";
-exit 99;
+# Check if the server is running and responding to health checks
+if curl -f http://localhost:8000/health || wget -q -O - http://localhost:8000/health; then
+  exit 0
+fi
+
+exit 1
