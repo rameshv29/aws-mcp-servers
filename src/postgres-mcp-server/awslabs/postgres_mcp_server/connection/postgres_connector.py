@@ -37,7 +37,7 @@ class PostgreSQLConnector:
         readonly: bool = True
     ):
         """
-        Initialize PostgreSQL connector.
+        Initialize PostgreSQL connector with lazy connection.
         
         Args:
             hostname: Database hostname
@@ -55,6 +55,10 @@ class PostgreSQLConnector:
         self.readonly = readonly
         self._connection = None
         self._credentials = None
+        self._credentials_cached = False
+        self._connection_validated = False
+        
+        logger.info(f"PostgreSQL connector initialized (lazy) for {hostname}:{port}/{database}")
         
     def is_connected(self) -> bool:
         """Check if the connection is active."""
@@ -69,8 +73,8 @@ class PostgreSQLConnector:
             return False
     
     async def _get_credentials(self) -> Dict[str, str]:
-        """Get database credentials from AWS Secrets Manager."""
-        if self._credentials is None:
+        """Get database credentials from AWS Secrets Manager with caching."""
+        if not self._credentials_cached:
             try:
                 sm_client = boto3.client('secretsmanager', region_name=self.region_name)
                 response = await asyncio.to_thread(
@@ -78,7 +82,8 @@ class PostgreSQLConnector:
                     SecretId=self.secret_arn
                 )
                 self._credentials = json.loads(response['SecretString'])
-                logger.info("Successfully retrieved credentials from Secrets Manager")
+                self._credentials_cached = True
+                logger.info("Successfully retrieved and cached credentials from Secrets Manager")
             except ClientError as e:
                 logger.error(f"Failed to retrieve credentials: {str(e)}")
                 raise
@@ -86,12 +91,16 @@ class PostgreSQLConnector:
     
     async def connect(self) -> bool:
         """
-        Establish connection to PostgreSQL database.
+        Establish connection to PostgreSQL database with optimized retry logic.
         
         Returns:
             True if connection successful, False otherwise
         """
+        if self.is_connected():
+            return True
+            
         try:
+            logger.info(f"Establishing connection to PostgreSQL: {self.hostname}:{self.port}/{self.database}")
             credentials = await self._get_credentials()
             
             connection_params = {
@@ -100,7 +109,7 @@ class PostgreSQLConnector:
                 'database': self.database,
                 'user': credentials.get('username'),
                 'password': credentials.get('password'),
-                'connect_timeout': 30,
+                'connect_timeout': 10,  # Reduced from 30 to 10 seconds
                 'application_name': 'postgres-mcp-server'
             }
             
@@ -112,12 +121,31 @@ class PostgreSQLConnector:
             if self.readonly:
                 self._connection.autocommit = True
             
-            logger.info(f"Successfully connected to PostgreSQL: {self.hostname}:{self.port}/{self.database}")
+            self._connection_validated = True
+            logger.success(f"Successfully connected to PostgreSQL: {self.hostname}:{self.port}/{self.database}")
             return True
             
         except Exception as e:
             logger.error(f"Failed to connect to PostgreSQL: {str(e)}")
             self._connection = None
+            self._connection_validated = False
+            return False
+    
+    async def test_connection_parameters(self) -> bool:
+        """
+        Test if connection parameters are valid without establishing full connection.
+        This is used for startup validation.
+        
+        Returns:
+            True if parameters seem valid, False otherwise
+        """
+        try:
+            # Just test if we can retrieve credentials
+            await self._get_credentials()
+            logger.info(f"Connection parameters validated for {self.hostname}:{self.port}/{self.database}")
+            return True
+        except Exception as e:
+            logger.error(f"Connection parameter validation failed: {str(e)}")
             return False
     
     async def disconnect(self):
@@ -137,7 +165,7 @@ class PostgreSQLConnector:
         parameters: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[str, Any]:
         """
-        Execute a query using direct PostgreSQL connection.
+        Execute a query using direct PostgreSQL connection with connection retry.
         
         Args:
             query: SQL query to execute
@@ -150,8 +178,12 @@ class PostgreSQLConnector:
             psycopg2.Error: If database operation fails
             Exception: For other errors
         """
+        # Ensure connection is established
         if not self.is_connected():
-            await self.connect()
+            logger.info("Establishing database connection for query execution...")
+            connected = await self.connect()
+            if not connected:
+                raise Exception("Failed to establish database connection")
         
         try:
             with self._connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
@@ -172,6 +204,19 @@ class PostgreSQLConnector:
                         'columnMetadata': []
                     }
                     
+        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+            # Connection might be lost, try to reconnect once
+            logger.warning(f"Connection error, attempting to reconnect: {str(e)}")
+            self._connection = None
+            self._connection_validated = False
+            
+            # Retry once
+            connected = await self.connect()
+            if connected:
+                return await self.execute_query(query, parameters)
+            else:
+                raise Exception(f"Failed to reconnect to database: {str(e)}")
+                
         except psycopg2.Error as e:
             logger.error(f"PostgreSQL query error: {str(e)}")
             raise
