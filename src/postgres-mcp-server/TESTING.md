@@ -8,34 +8,30 @@ All test files are organized in the `tests/` directory following Python project 
 
 ```
 tests/
-├── test_all_tools_simple.py     # Comprehensive SQL query validation
-├── test_new_tools.py            # New tools validation
-├── test_type_conversions.py     # Type conversion validation
-└── test_server.py               # Legacy unit tests
+├── test_all_tools_comprehensive.py  # Comprehensive validation of all 10 tools
+├── test_type_conversions.py         # Type conversion validation
+├── test_server.py                   # Legacy unit tests
+└── __init__.py                      # Python package initialization
 ```
 
 ## Test Files
 
-### Core Server Tests
+### Primary Test Suite
 
-#### `tests/test_all_tools_simple.py`
-**Purpose**: Comprehensive validation of all SQL queries used by the 10 MCP tools
-- Tests all underlying SQL queries against the actual RDS database
-- Validates data types and response formats
-- Confirms RDS Data API compatibility
-- **Usage**: `python tests/test_all_tools_simple.py`
-- **Expected Result**: 10/10 SQL queries should pass
+#### `tests/test_all_tools_comprehensive.py` ⭐ **MAIN TEST**
+**Purpose**: Comprehensive validation of all 10 PostgreSQL MCP Server tools
+- **Complete Coverage**: Tests all 10 tools with their SQL queries and logic
+- **Core Tools**: run_query, get_table_schema, health_check
+- **Analysis Tools**: All 7 analysis tools with detailed validation
+- **Logic Validation**: Type conversions, error handling, data validation
+- **RDS Data API**: Full compatibility testing
+- **Usage**: `python tests/test_all_tools_comprehensive.py`
+- **Expected Result**: 16/17 tests should pass (1 expected failure for pg_stat_statements view)
 
-#### `tests/test_new_tools.py`
-**Purpose**: Specific validation of the 3 newly added tools
-- Tests `health_check`, `analyze_vacuum_stats`, and `recommend_indexes`
-- Validates type conversions and error handling
-- Tests RDS Data API compatibility fixes
-- **Usage**: `python tests/test_new_tools.py`
-- **Expected Result**: 3/3 new tools should pass
+### Specialized Tests
 
 #### `tests/test_type_conversions.py`
-**Purpose**: Validates critical type conversion fixes
+**Purpose**: Focused validation of critical type conversion fixes
 - Tests string to float conversions for bloat percentages
 - Validates table fragmentation analysis type handling
 - Ensures no "str vs float" comparison errors
@@ -62,75 +58,113 @@ export AWS_PROFILE=mcp_profile
 export AWS_REGION=us-west-2
 ```
 
-### Run Individual Tests
+### Recommended Testing Workflow
+
+#### 1. Run Main Comprehensive Test (Recommended)
 ```bash
-# Test all SQL queries (most comprehensive)
-python tests/test_all_tools_simple.py
+# This is the primary test - covers all 10 tools comprehensively
+python tests/test_all_tools_comprehensive.py
+```
 
-# Test new tools specifically
-python tests/test_new_tools.py
-
-# Test type conversions
+#### 2. Run Specialized Tests (Optional)
+```bash
+# Test type conversions specifically
 python tests/test_type_conversions.py
 
 # Run legacy unit tests
 python tests/test_server.py
 ```
 
-### Run All Tests
+#### 3. Run All Tests with pytest (If Available)
 ```bash
-# Run all tests using pytest (if available)
+# Run all tests using pytest
 pytest tests/
 
-# Or run all tests manually
-python tests/test_all_tools_simple.py && \
-python tests/test_new_tools.py && \
-python tests/test_type_conversions.py
+# Run with verbose output
+pytest -v tests/
+
+# Run specific test file
+pytest tests/test_all_tools_comprehensive.py
 ```
 
 ### Expected Results
-- **All tests should pass** for a healthy server
-- **SQL syntax errors** indicate query compatibility issues
-- **Type conversion errors** indicate RDS Data API data type issues
-- **Connection errors** indicate AWS credentials or network issues
+- **16/17 tests should pass** in the comprehensive test
+- **1 expected failure**: `slow_queries_data` (pg_stat_statements view access issue)
+- **All other tests passing** indicates a healthy server
 
 ## Test Coverage
 
-The test suite covers:
-- ✅ All 10 MCP tools
-- ✅ All SQL queries and syntax
-- ✅ RDS Data API compatibility
-- ✅ Type conversions (string ↔ numeric)
-- ✅ Error handling and edge cases
-- ✅ JSON response formatting
+### Comprehensive Test Suite Covers:
+- ✅ **All 10 MCP tools** (3 core + 7 analysis)
+- ✅ **17 SQL queries** with syntax validation
+- ✅ **RDS Data API compatibility** (data type handling)
+- ✅ **Type conversions** (string ↔ numeric)
+- ✅ **Logic validation** (business rules, thresholds)
+- ✅ **Error handling** and edge cases
+- ✅ **JSON response formatting**
+
+### Tool-by-Tool Coverage:
+1. **run_query**: Basic + complex query execution
+2. **get_table_schema**: Column metadata retrieval
+3. **health_check**: Connectivity + logic validation
+4. **analyze_database_structure**: Schemas, tables, indexes
+5. **show_postgresql_settings**: Filtered + all settings
+6. **identify_slow_queries**: Extension check + query analysis
+7. **analyze_table_fragmentation**: Bloat analysis + type conversion
+8. **analyze_query_performance**: EXPLAIN functionality
+9. **analyze_vacuum_stats**: Statistics + settings
+10. **recommend_indexes**: Current indexes + statistics analysis
+
+## Advantages of Consolidated Testing
+
+### Why We Consolidated Tests:
+1. **No Duplication**: Eliminates redundant SQL query tests
+2. **Single Source of Truth**: One comprehensive test file
+3. **Easier Maintenance**: Only one file to update when adding tools
+4. **Faster Testing**: Single database connection, efficient execution
+5. **Better Organization**: All tool tests in logical order
+6. **Complete Coverage**: Tests both SQL and business logic
+
+### Previous Structure Issues:
+- ❌ **test_all_tools_simple.py**: Only tested SQL queries (incomplete)
+- ❌ **test_new_tools.py**: Redundant SQL tests + limited to 3 tools
+- ❌ **Maintenance Overhead**: Two files to update for changes
+- ❌ **Resource Waste**: Multiple database connections
 
 ## Troubleshooting
 
 ### Common Issues
 1. **AWS Credentials**: Ensure `mcp_profile` is configured
 2. **Database Access**: Verify RDS cluster is accessible
-3. **Extensions**: Some tests require `pg_stat_statements` extension
+3. **Extensions**: `pg_stat_statements` view may not be accessible (expected)
 4. **Data Types**: RDS Data API doesn't support PostgreSQL arrays
 
-### Test Failures
+### Expected Test Failures
+- **slow_queries_data**: pg_stat_statements view access (normal for some RDS configurations)
+
+### Unexpected Test Failures
 - Review error messages for specific SQL syntax issues
 - Check AWS credentials and database connectivity
 - Verify RDS Data API permissions and cluster status
 
 ## Development Workflow
 
-### Adding New Tests
-1. Create new test files in the `tests/` directory
-2. Follow the naming convention: `test_<feature_name>.py`
-3. Include comprehensive error handling and validation
-4. Update this documentation with new test descriptions
-
 ### Before Committing Changes
 ```bash
-# Run the comprehensive test suite
-python tests/test_all_tools_simple.py
-python tests/test_new_tools.py
+# Run the comprehensive test suite (primary validation)
+python tests/test_all_tools_comprehensive.py
+
+# Optionally run type conversion tests
 python tests/test_type_conversions.py
 ```
 
-All tests should pass before pushing changes to the repository.
+### Adding New Tools
+1. Add SQL query tests to `test_all_tools_comprehensive.py`
+2. Include logic validation functions if needed
+3. Update this documentation
+4. Ensure all tests pass before committing
+
+### Performance Notes
+- **Comprehensive test**: ~30-45 seconds (tests 17 queries)
+- **Type conversion test**: ~10-15 seconds (focused testing)
+- **Total coverage**: All 10 tools validated efficiently
