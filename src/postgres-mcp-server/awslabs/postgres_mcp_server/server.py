@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Simplified PostgreSQL MCP Server for Q Chat integration."""
+"""PostgreSQL MCP Server implementation."""
 
 import argparse
 import asyncio
 import boto3
+import json
 import sys
 from typing import Annotated, Any, Dict, List, Optional
 
