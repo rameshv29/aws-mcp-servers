@@ -171,7 +171,7 @@ def execute_readonly_query(
 
 
 # Initialize FastMCP server
-mcp = FastMCP('Simplified PostgreSQL MCP Server for Q Chat')
+mcp = FastMCP('PostgreSQL MCP Server with Database Analysis Tools')
 
 
 @mcp.tool(name='run_query', description='Run a SQL query using boto3 execute_statement')
@@ -500,6 +500,145 @@ async def identify_slow_queries(
         
     except Exception as e:
         logger.error(f"Slow query analysis failed: {str(e)}")
+        return json.dumps({"status": "error", "error": str(e)})
+
+
+@mcp.tool(name='analyze_table_fragmentation', description='Analyze table fragmentation and provide optimization recommendations')
+async def analyze_table_fragmentation(
+    ctx: Context,
+    threshold: Annotated[float, Field(description='Bloat percentage threshold for recommendations')] = 10.0,
+    debug: Annotated[bool, Field(description='Include debug information')] = False
+) -> str:
+    """Analyze table fragmentation and provide optimization recommendations."""
+    try:
+        logger.info(f"Analyzing table fragmentation with threshold {threshold}%")
+        
+        # Get table bloat information using pg_stat_user_tables
+        bloat_sql = """
+            SELECT 
+                schemaname,
+                relname as tablename,
+                n_tup_ins as inserts,
+                n_tup_upd as updates,
+                n_tup_del as deletes,
+                n_live_tup as live_tuples,
+                n_dead_tup as dead_tuples,
+                CASE 
+                    WHEN n_live_tup > 0 
+                    THEN round(100.0 * n_dead_tup / (n_live_tup + n_dead_tup), 2)
+                    ELSE 0 
+                END as bloat_percent,
+                last_vacuum,
+                last_autovacuum
+            FROM pg_stat_user_tables
+            ORDER BY 
+                CASE 
+                    WHEN n_live_tup > 0 
+                    THEN 100.0 * n_dead_tup / (n_live_tup + n_dead_tup)
+                    ELSE 0 
+                END DESC
+        """
+        
+        bloat_result = await run_query(bloat_sql, ctx)
+        
+        # Filter tables above threshold
+        problematic_tables = []
+        for row in bloat_result:
+            if 'error' not in row and row.get('bloat_percent', 0) > threshold:
+                problematic_tables.append(row)
+        
+        result = {
+            "status": "success",
+            "data": {
+                "table_bloat": [row for row in bloat_result if 'error' not in row],
+                "problematic_tables": problematic_tables,
+                "threshold_percent": threshold
+            },
+            "metadata": {
+                "analysis_timestamp": "2025-06-19T13:40:00Z",
+                "total_tables_analyzed": len([row for row in bloat_result if 'error' not in row]),
+                "tables_above_threshold": len(problematic_tables)
+            },
+            "recommendations": [
+                f"Found {len(problematic_tables)} tables above {threshold}% bloat threshold",
+                "Consider running VACUUM on tables with high dead tuple percentages",
+                "Review autovacuum settings for frequently updated tables",
+                "Monitor vacuum operations and adjust frequency as needed"
+            ]
+        }
+        
+        logger.success("Table fragmentation analysis completed")
+        return json.dumps(result, indent=2 if debug else None)
+        
+    except Exception as e:
+        logger.error(f"Table fragmentation analysis failed: {str(e)}")
+        return json.dumps({"status": "error", "error": str(e)})
+
+
+@mcp.tool(name='analyze_query_performance', description='Analyze query performance and provide optimization recommendations')
+async def analyze_query_performance(
+    ctx: Context,
+    query: Annotated[str, Field(description='SQL query to analyze')],
+    debug: Annotated[bool, Field(description='Include debug information')] = False
+) -> str:
+    """Analyze query performance and provide optimization recommendations."""
+    try:
+        logger.info(f"Analyzing query performance for: {query[:100]}...")
+        
+        # Get query execution plan
+        explain_sql = f"EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT) {query}"
+        
+        try:
+            explain_result = await run_query(explain_sql, ctx)
+            execution_plan = [row for row in explain_result if 'error' not in row]
+        except Exception as e:
+            # Fallback to basic EXPLAIN if ANALYZE fails
+            logger.warning(f"EXPLAIN ANALYZE failed, trying basic EXPLAIN: {str(e)}")
+            basic_explain_sql = f"EXPLAIN {query}"
+            explain_result = await run_query(basic_explain_sql, ctx)
+            execution_plan = [row for row in explain_result if 'error' not in row]
+        
+        # Analyze the plan for common issues
+        recommendations = []
+        expensive_operations = []
+        
+        for row in execution_plan:
+            plan_line = str(row.get('QUERY PLAN', ''))
+            
+            if 'Seq Scan' in plan_line:
+                recommendations.append("Query uses sequential scans - consider adding indexes on filtered columns")
+            
+            if 'Nested Loop' in plan_line and 'rows=' in plan_line:
+                recommendations.append("Nested loop joins detected - verify join conditions and indexes")
+            
+            if 'Sort' in plan_line and 'cost=' in plan_line:
+                recommendations.append("Expensive sort operations detected - consider indexes for ORDER BY clauses")
+            
+            if 'Hash' in plan_line:
+                recommendations.append("Hash operations detected - monitor memory usage for large datasets")
+        
+        if not recommendations:
+            recommendations.append("Query execution plan looks reasonable - no obvious optimization opportunities")
+        
+        result = {
+            "status": "success",
+            "data": {
+                "query": query,
+                "execution_plan": execution_plan,
+                "expensive_operations": expensive_operations
+            },
+            "metadata": {
+                "analysis_timestamp": "2025-06-19T13:40:00Z",
+                "plan_lines": len(execution_plan)
+            },
+            "recommendations": recommendations
+        }
+        
+        logger.success("Query performance analysis completed")
+        return json.dumps(result, indent=2 if debug else None)
+        
+    except Exception as e:
+        logger.error(f"Query performance analysis failed: {str(e)}")
         return json.dumps({"status": "error", "error": str(e)})
 
 
