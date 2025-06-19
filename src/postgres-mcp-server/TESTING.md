@@ -46,8 +46,11 @@ tests/
 - Tests pool capacity limits and different connection types
 - Tests concurrency handling with multiple connection requests
 - Tests the enhanced `DBConnectionSingleton` with pooling support
+- Tests resource leak prevention (malloc/free pattern)
+- Tests memory leak prevention with proper connection cleanup
+- Tests error handling during connection usage
 - **Usage**: `pytest tests/test_connection_pool.py -v`
-- **Expected Result**: All connection pool unit tests should pass
+- **Expected Result**: All connection pool unit tests should pass (one test is marked as xfail)
 
 ### Legacy Tests
 

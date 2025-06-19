@@ -616,6 +616,119 @@ class TestEnhancedDBConnectionSingleton:
         assert wrapper.data_client is None
 
 
+# Tests for resource management and leak detection
+class TestConnectionPoolResourceManagement:
+    """Tests for connection pool resource management and leak detection."""
+    
+    @pytest.mark.asyncio
+    @patch('awslabs.postgres_mcp_server.connection.pool_manager.RDSDataAPIConnector', MockRDSConnector)
+    async def test_resource_leak_prevention(self, pool_manager, mock_connection_factory):
+        """Test that the connection pool prevents resource leaks over repeated use."""
+        # Set a fixed pool size for testing
+        pool_manager.max_size = 5
+        
+        # Track created connections to detect leaks
+        created_connections = set()
+        
+        # Run many get/return cycles to check for leaks
+        for _ in range(100):  # Run enough cycles to potentially expose leaks
+            # Get a connection
+            connection = await pool_manager.get_connection(
+                secret_arn='test_secret',
+                resource_arn='test_resource',
+                database='test_db'
+            )
+            
+            # Track this connection
+            created_connections.add(connection)
+            
+            # Return it immediately
+            await pool_manager.return_connection(connection)
+        
+        # Verify we didn't create more connections than the pool size
+        # This ensures connections are being reused properly
+        assert len(created_connections) <= pool_manager.max_size
+        
+        # Check pool state - all connections should be available, none in use
+        assert len(pool_manager._pools["test_pool_key"]["connections"]) <= pool_manager.max_size
+        assert len(pool_manager._pools["test_pool_key"]["in_use"]) == 0
+        
+        # Get pool stats for verification
+        stats = pool_manager.get_pool_stats()
+        assert stats["test_pool_key"]["in_use_connections"] == 0
+        assert stats["test_pool_key"]["available_connections"] <= pool_manager.max_size
+    
+    @pytest.mark.asyncio
+    @patch('awslabs.postgres_mcp_server.connection.pool_manager.RDSDataAPIConnector', MockRDSConnector)
+    async def test_connection_cleanup_on_errors(self, pool_manager, mock_connection_factory):
+        """Test that connections are properly cleaned up even when errors occur."""
+        # Set up a connection that will fail during use
+        connection = await pool_manager.get_connection(
+            secret_arn='test_secret',
+            resource_arn='test_resource',
+            database='test_db'
+        )
+        
+        # Track initial pool state
+        initial_pool_size = len(pool_manager._pools["test_pool_key"]["connections"])
+        
+        # Simulate an error during connection use
+        connection.execute_query = AsyncMock(side_effect=Exception("Simulated error"))
+        
+        # Use the connection with error handling
+        try:
+            await connection.execute_query("SELECT 1")
+        except Exception:
+            # Return the connection despite the error
+            await pool_manager.return_connection(connection)
+        
+        # Get a new connection
+        new_connection = await pool_manager.get_connection(
+            secret_arn='test_secret',
+            resource_arn='test_resource',
+            database='test_db'
+        )
+        
+        # Verify the connection was properly returned and is reusable
+        await pool_manager.return_connection(new_connection)
+        
+        # Check that pool size hasn't grown unexpectedly
+        assert len(pool_manager._pools["test_pool_key"]["connections"]) <= initial_pool_size + 1
+        
+        # Verify no connections are left in use
+        assert len(pool_manager._pools["test_pool_key"]["in_use"]) == 0
+    
+    @pytest.mark.asyncio
+    @patch('awslabs.postgres_mcp_server.connection.pool_manager.RDSDataAPIConnector', MockRDSConnector)
+    async def test_memory_leak_prevention(self, pool_manager, mock_connection_factory):
+        """Test that the connection pool prevents memory leaks by properly closing connections."""
+        # Keep track of all created connections
+        all_connections = []
+        
+        # Create and immediately close many connections
+        for _ in range(20):
+            conn = await pool_manager.get_connection(
+                secret_arn='test_secret',
+                resource_arn='test_resource',
+                database='test_db'
+            )
+            all_connections.append(conn)
+        
+        # Return all connections to the pool
+        for conn in all_connections:
+            await pool_manager.return_connection(conn)
+        
+        # Close all connections in the pool
+        await pool_manager.close_all_connections()
+        
+        # Verify all connections were properly disconnected
+        for conn in all_connections:
+            assert conn.connected is False
+        
+        # Verify the pool is empty
+        assert len(pool_manager._pools) == 0
+
+
 # Tests for error handling
 class TestConnectionPoolErrorHandling:
     """Tests for connection pool error handling."""
