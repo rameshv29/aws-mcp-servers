@@ -32,8 +32,8 @@ class MockRDSConnector(AsyncMock):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.resource_arn = kwargs.get('resource_arn', 'mock_resource_arn')
-        self.secret_arn = kwargs.get('secret_arn', 'mock_secret_arn')
+        self.resource_arn = kwargs.get('resource_arn', 'mock_resource_arn')  # pragma: allowlist secret
+        self.secret_arn = kwargs.get('secret_arn', 'mock_secret_arn')  # pragma: allowlist secret
         self.database = kwargs.get('database', 'mock_database')
         self.region_name = kwargs.get('region_name', 'us-west-2')
         self.readonly = kwargs.get('readonly', True)
@@ -65,7 +65,7 @@ class MockPostgreSQLConnector(AsyncMock):
         self.hostname = kwargs.get('hostname', 'mock_hostname')
         self.port = kwargs.get('port', 5432)
         self.database = kwargs.get('database', 'mock_database')
-        self.secret_arn = kwargs.get('secret_arn', 'mock_secret_arn')
+        self.secret_arn = kwargs.get('secret_arn', 'mock_secret_arn')  # pragma: allowlist secret
         self.region_name = kwargs.get('region_name', 'us-west-2')
         self.readonly = kwargs.get('readonly', True)
         self.connected = False
@@ -174,8 +174,8 @@ class TestConnectionPoolManager:
         """Test that getting a connection creates a new pool if none exists."""
         # Get a connection
         connection = await pool_manager.get_connection(
-            secret_arn='test_secret',
-            resource_arn='test_resource',
+            secret_arn='test_secret',  # pragma: allowlist secret
+            resource_arn='test_resource',  # pragma: allowlist secret
             database='test_db'
         )
         
@@ -195,8 +195,8 @@ class TestConnectionPoolManager:
         """Test that getting a connection reuses an existing one if available."""
         # Get a connection
         connection1 = await pool_manager.get_connection(
-            secret_arn='test_secret',
-            resource_arn='test_resource',
+            secret_arn='test_secret',  # pragma: allowlist secret
+            resource_arn='test_resource',  # pragma: allowlist secret
             database='test_db'
         )
         
@@ -474,8 +474,8 @@ class TestEnhancedDBConnectionSingleton:
         """Test initializing the singleton with RDS parameters."""
         # Initialize the singleton
         DBConnectionSingleton.initialize(
-            resource_arn='test_resource',
-            secret_arn='test_secret',
+            resource_arn='test_resource',  # pragma: allowlist secret
+            secret_arn='test_secret',  # pragma: allowlist secret
             database='test_db',
             region='us-west-2',
             readonly=True
@@ -501,7 +501,7 @@ class TestEnhancedDBConnectionSingleton:
         DBConnectionSingleton.initialize(
             hostname='localhost',
             port=5432,
-            secret_arn='test_secret',
+            secret_arn='test_secret',  # pragma: allowlist secret
             database='test_db',
             region='us-west-2',
             readonly=True
@@ -607,8 +607,8 @@ class TestEnhancedDBConnectionSingleton:
         wrapper = instance.db_connection
         
         # Check wrapper properties
-        assert wrapper.cluster_arn == 'test_resource'
-        assert wrapper.secret_arn == 'test_secret'
+        assert wrapper.cluster_arn == 'test_resource'  # pragma: allowlist secret
+        assert wrapper.secret_arn == 'test_secret'  # pragma: allowlist secret
         assert wrapper.database == 'test_db'
         assert wrapper.readonly_query is True
         
@@ -743,8 +743,8 @@ class TestConnectionPoolErrorHandling:
         # Try to get a connection
         with pytest.raises(ValueError) as excinfo:
             await pool_manager.get_connection(
-                secret_arn='test_secret',
-                resource_arn='test_resource',
+                secret_arn='test_secret',  # pragma: allowlist secret
+                resource_arn='test_resource',  # pragma: allowlist secret
                 database='test_db'
             )
         
