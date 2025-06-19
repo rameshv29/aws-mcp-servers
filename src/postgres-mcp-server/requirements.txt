@@ -1,0 +1,27 @@
+# PostgreSQL MCP Server Dependencies
+# Generated from pyproject.toml
+
+# Core MCP and logging
+loguru>=0.7.0
+mcp[cli]>=1.6.0
+pydantic>=2.10.6
+
+# AWS SDK
+boto3>=1.38.5
+botocore>=1.38.5
+
+# PostgreSQL connector
+psycopg2-binary>=2.9.9
+
+# Additional dependencies for web server functionality
+starlette>=0.40.0
+uvicorn>=0.32.0
+
+# Development dependencies (optional)
+# Uncomment if needed for development
+# commitizen>=4.2.2
+# pre-commit>=4.1.0
+# ruff>=0.9.7
+# pyright>=1.1.398
+# pytest>=8.0.0
+# pytest-asyncio>=0.26.0

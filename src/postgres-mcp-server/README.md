@@ -63,7 +63,7 @@ python -m awslabs.postgres_mcp_server.server \
   --readonly "true"
 ```
 
-**Note:** Direct PostgreSQL connection uses the connection modules in the codebase but requires integration work to be fully functional with the current server implementation. Currently, only RDS Data API is fully integrated.
+**Note:** Both connection methods are fully integrated and functional. The server automatically determines the connection type based on the parameters provided.
 
 ## Prerequisites
 
@@ -109,26 +109,93 @@ You can configure the connection pool using environment variables:
 
 ## Running the Server
 
-### Locally with Python
+### Method 1: Navigate to Project Directory (Recommended)
 
 ```bash
-cd postgres-mcp-server
-python3.10 -m venv .venv
-source .venv/bin/activate
-python3.10 -m pip install -r requirements.txt
+# Clone and navigate to the project
+git clone https://github.com/your-repo/aws-mcp-servers.git
+cd aws-mcp-servers/src/postgres-mcp-server
 
-# Set AWS profile for secure credential access
+# Create virtual environment and install dependencies
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+# Set AWS credentials
 export AWS_PROFILE=your-profile-name
 export AWS_REGION=us-west-2
 
-# Run the server with required parameters
-python3.10 -m awslabs.postgres_mcp_server.server \
+# Run the server
+python -m awslabs.postgres_mcp_server.server \
   --resource_arn "arn:aws:rds:region:account:cluster:cluster-name" \
   --secret_arn "arn:aws:secretsmanager:region:account:secret:secret-name" \
   --database "your-database-name" \
   --region "us-west-2" \
   --readonly "true"
 ```
+
+### Method 2: Install in Development Mode (For Remote Hosts)
+
+```bash
+# Navigate to the postgres-mcp-server directory
+cd /path/to/aws-mcp-servers/src/postgres-mcp-server
+
+# Install in development mode (makes module available system-wide)
+pip install -e .
+
+# Now you can run from any directory
+python -m awslabs.postgres_mcp_server.server \
+  --resource_arn "arn:aws:rds:region:account:cluster:cluster-name" \
+  --secret_arn "arn:aws:secretsmanager:region:account:secret:secret-name" \
+  --database "your-database-name" \
+  --region "us-west-2" \
+  --readonly "true"
+```
+
+### Method 3: Using PYTHONPATH (Alternative)
+
+```bash
+# From any directory, set PYTHONPATH to include the postgres-mcp-server directory
+export PYTHONPATH=/path/to/aws-mcp-servers/src/postgres-mcp-server:$PYTHONPATH
+
+# Run the server
+python -m awslabs.postgres_mcp_server.server \
+  --resource_arn "arn:aws:rds:region:account:cluster:cluster-name" \
+  --secret_arn "arn:aws:secretsmanager:region:account:secret:secret-name" \
+  --database "your-database-name" \
+  --region "us-west-2" \
+  --readonly "true"
+```
+
+### Troubleshooting Common Issues
+
+#### Issue: "ModuleNotFoundError: No module named 'postgres_mcp_server'"
+
+**Problem:** Wrong module path or not in correct directory.
+
+**Solutions:**
+1. **Use correct module path:** `awslabs.postgres_mcp_server.server` (not `postgres_mcp_server.server`)
+2. **Navigate to correct directory:** `cd /path/to/aws-mcp-servers/src/postgres-mcp-server`
+3. **Set PYTHONPATH:** `export PYTHONPATH=/path/to/postgres-mcp-server:$PYTHONPATH`
+4. **Install in development mode:** `pip install -e .`
+
+#### Issue: "No such file or directory: requirements.txt"
+
+**Problem:** Missing requirements.txt file.
+
+**Solution:** Use the requirements.txt file included in the repository, or install from pyproject.toml:
+```bash
+pip install -e .
+```
+
+#### Issue: AWS credentials not found
+
+**Problem:** AWS credentials not configured properly.
+
+**Solutions:**
+1. **Set AWS profile:** `export AWS_PROFILE=your-profile-name`
+2. **Configure AWS CLI:** `aws configure`
+3. **Use IAM roles** (for EC2/ECS deployments)
 
 ### Using Docker (Recommended - Secure Credential Management)
 
