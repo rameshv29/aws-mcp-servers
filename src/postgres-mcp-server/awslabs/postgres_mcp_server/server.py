@@ -659,6 +659,287 @@ async def analyze_query_performance(
         return json.dumps({"status": "error", "error": str(e)})
 
 
+@mcp.tool(name='health_check', description='Check if the server is running and responsive')
+async def health_check(ctx: Context) -> Dict[str, Any]:
+    """Check if the server is running and responsive."""
+    try:
+        # Test database connectivity
+        connection_test = False
+        try:
+            db_connection = DBConnectionSingleton.get().db_connection
+            test_result = await run_query("SELECT 1 as health_check", ctx)
+            connection_test = len(test_result) > 0 and 'error' not in test_result[0]
+        except Exception as e:
+            logger.warning(f"Health check database test failed: {str(e)}")
+        
+        return {
+            "status": "healthy" if connection_test else "unhealthy",
+            "timestamp": "2025-06-19T14:10:00Z",
+            "database_connection": connection_test,
+            "server_version": "consolidated-v1.0",
+            "tools_available": 10,
+            "database_type": "PostgreSQL via RDS Data API"
+        }
+        
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": "2025-06-19T14:10:00Z"
+        }
+
+
+@mcp.tool(name='analyze_vacuum_stats', description='Analyze vacuum statistics and provide recommendations for vacuum settings')
+async def analyze_vacuum_stats(
+    ctx: Context,
+    debug: Annotated[bool, Field(description='Include debug information')] = False
+) -> str:
+    """Analyze vacuum statistics and provide recommendations for vacuum settings."""
+    try:
+        logger.info("Analyzing vacuum statistics")
+        
+        # Get vacuum statistics from pg_stat_user_tables
+        vacuum_stats_sql = """
+            SELECT 
+                schemaname,
+                relname as tablename,
+                n_tup_ins as total_inserts,
+                n_tup_upd as total_updates,
+                n_tup_del as total_deletes,
+                n_live_tup as live_tuples,
+                n_dead_tup as dead_tuples,
+                last_vacuum,
+                last_autovacuum,
+                vacuum_count,
+                autovacuum_count,
+                CASE 
+                    WHEN n_live_tup > 0 
+                    THEN round(100.0 * n_dead_tup / (n_live_tup + n_dead_tup), 2)
+                    ELSE 0 
+                END as dead_tuple_percent
+            FROM pg_stat_user_tables
+            WHERE n_tup_ins + n_tup_upd + n_tup_del > 0
+            ORDER BY 
+                CASE 
+                    WHEN n_live_tup > 0 
+                    THEN 100.0 * n_dead_tup / (n_live_tup + n_dead_tup)
+                    ELSE 0 
+                END DESC
+        """
+        
+        vacuum_result = await run_query(vacuum_stats_sql, ctx)
+        
+        # Analyze vacuum settings
+        vacuum_settings_sql = """
+            SELECT 
+                name,
+                setting,
+                unit,
+                short_desc
+            FROM pg_settings 
+            WHERE name LIKE '%vacuum%' OR name LIKE '%autovacuum%'
+            ORDER BY name
+        """
+        
+        settings_result = await run_query(vacuum_settings_sql, ctx)
+        
+        # Generate recommendations
+        recommendations = []
+        tables_needing_vacuum = []
+        
+        for row in vacuum_result:
+            if 'error' not in row:
+                dead_percent_value = row.get('dead_tuple_percent', '0')
+                try:
+                    if isinstance(dead_percent_value, str):
+                        dead_percent = float(dead_percent_value)
+                    else:
+                        dead_percent = float(dead_percent_value) if dead_percent_value is not None else 0.0
+                    
+                    if dead_percent > 20:  # More than 20% dead tuples
+                        tables_needing_vacuum.append({
+                            'table': f"{row.get('schemaname', '')}.{row.get('tablename', '')}",
+                            'dead_percent': dead_percent,
+                            'last_vacuum': row.get('last_vacuum'),
+                            'last_autovacuum': row.get('last_autovacuum')
+                        })
+                except (ValueError, TypeError):
+                    continue
+        
+        if tables_needing_vacuum:
+            recommendations.append(f"Found {len(tables_needing_vacuum)} tables with >20% dead tuples needing vacuum")
+            recommendations.append("Consider running VACUUM on tables with high dead tuple percentages")
+        else:
+            recommendations.append("All tables have healthy vacuum statistics")
+        
+        recommendations.extend([
+            "Monitor autovacuum settings for optimal performance",
+            "Consider adjusting autovacuum_vacuum_threshold for busy tables",
+            "Review vacuum scheduling during low-traffic periods"
+        ])
+        
+        result = {
+            "status": "success",
+            "data": {
+                "vacuum_statistics": [row for row in vacuum_result if 'error' not in row],
+                "vacuum_settings": [row for row in settings_result if 'error' not in row],
+                "tables_needing_vacuum": tables_needing_vacuum
+            },
+            "metadata": {
+                "analysis_timestamp": "2025-06-19T14:10:00Z",
+                "total_tables_analyzed": len([row for row in vacuum_result if 'error' not in row]),
+                "tables_needing_vacuum": len(tables_needing_vacuum)
+            },
+            "recommendations": recommendations
+        }
+        
+        logger.success("Vacuum statistics analysis completed")
+        return json.dumps(result, indent=2 if debug else None)
+        
+    except Exception as e:
+        logger.error(f"Vacuum statistics analysis failed: {str(e)}")
+        return json.dumps({"status": "error", "error": str(e)})
+
+
+@mcp.tool(name='recommend_indexes', description='Recommend indexes for database optimization based on query patterns')
+async def recommend_indexes(
+    ctx: Context,
+    query: Annotated[Optional[str], Field(description='Specific query to analyze for index recommendations')] = None,
+    debug: Annotated[bool, Field(description='Include debug information')] = False
+) -> str:
+    """Recommend indexes for database optimization based on query patterns."""
+    try:
+        logger.info(f"Generating index recommendations" + (f" for query: {query[:100]}..." if query else ""))
+        
+        # Get current indexes
+        current_indexes_sql = """
+            SELECT 
+                schemaname,
+                tablename,
+                indexname,
+                indexdef,
+                CASE 
+                    WHEN indexdef LIKE '%UNIQUE%' THEN 'UNIQUE'
+                    WHEN indexdef LIKE '%btree%' THEN 'BTREE'
+                    WHEN indexdef LIKE '%gin%' THEN 'GIN'
+                    WHEN indexdef LIKE '%gist%' THEN 'GIST'
+                    ELSE 'OTHER'
+                END as index_type
+            FROM pg_indexes
+            WHERE schemaname NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
+            ORDER BY schemaname, tablename, indexname
+        """
+        
+        indexes_result = await run_query(current_indexes_sql, ctx)
+        
+        # Get table statistics for index recommendations
+        table_stats_sql = """
+            SELECT 
+                schemaname,
+                tablename,
+                attname as column_name,
+                n_distinct,
+                correlation,
+                most_common_vals,
+                most_common_freqs
+            FROM pg_stats
+            WHERE schemaname NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
+            AND n_distinct IS NOT NULL
+            ORDER BY schemaname, tablename, n_distinct DESC
+        """
+        
+        stats_result = await run_query(table_stats_sql, ctx)
+        
+        # Generate recommendations based on statistics
+        recommendations = []
+        index_suggestions = []
+        
+        # Group stats by table
+        table_stats = {}
+        for row in stats_result:
+            if 'error' not in row:
+                table_key = f"{row.get('schemaname', '')}.{row.get('tablename', '')}"
+                if table_key not in table_stats:
+                    table_stats[table_key] = []
+                table_stats[table_key].append(row)
+        
+        # Analyze each table for index opportunities
+        for table_name, columns in table_stats.items():
+            high_cardinality_cols = []
+            
+            for col in columns:
+                try:
+                    n_distinct = col.get('n_distinct', 0)
+                    if isinstance(n_distinct, str):
+                        n_distinct = float(n_distinct)
+                    else:
+                        n_distinct = float(n_distinct) if n_distinct is not None else 0
+                    
+                    if n_distinct > 100:  # High cardinality
+                        high_cardinality_cols.append({
+                            'column': col.get('column_name'),
+                            'n_distinct': n_distinct,
+                            'correlation': col.get('correlation')
+                        })
+                except (ValueError, TypeError):
+                    continue
+            
+            # Generate suggestions for this table
+            if high_cardinality_cols:
+                for col in high_cardinality_cols[:2]:  # Top 2 high cardinality columns
+                    index_suggestions.append({
+                        'table': table_name,
+                        'suggested_index': f"CREATE INDEX idx_{table_name.split('.')[-1]}_{col['column']} ON {table_name} ({col['column']})",
+                        'reason': f"High cardinality column ({col['n_distinct']} distinct values) - good for equality searches",
+                        'priority': 'HIGH'
+                    })
+        
+        # If a specific query was provided, analyze it
+        if query:
+            try:
+                explain_result = await run_query(f"EXPLAIN {query}", ctx)
+                for row in explain_result:
+                    if 'error' not in row:
+                        plan_line = str(row.get('QUERY PLAN', ''))
+                        if 'Seq Scan' in plan_line:
+                            recommendations.append(f"Query uses sequential scan - consider adding indexes on filtered columns")
+                        if 'Sort' in plan_line:
+                            recommendations.append(f"Query requires sorting - consider indexes on ORDER BY columns")
+            except Exception as e:
+                logger.warning(f"Could not analyze specific query: {e}")
+        
+        if not recommendations:
+            recommendations = [
+                "Review high-cardinality columns for index opportunities",
+                "Consider composite indexes for multi-column WHERE clauses",
+                "Monitor query performance after adding new indexes",
+                "Remove unused indexes to improve write performance"
+            ]
+        
+        result = {
+            "status": "success",
+            "data": {
+                "current_indexes": [row for row in indexes_result if 'error' not in row],
+                "table_statistics": [row for row in stats_result if 'error' not in row],
+                "index_suggestions": index_suggestions,
+                "analyzed_query": query
+            },
+            "metadata": {
+                "analysis_timestamp": "2025-06-19T14:10:00Z",
+                "tables_analyzed": len(table_stats),
+                "index_suggestions_count": len(index_suggestions)
+            },
+            "recommendations": recommendations
+        }
+        
+        logger.success("Index recommendations analysis completed")
+        return json.dumps(result, indent=2 if debug else None)
+        
+    except Exception as e:
+        logger.error(f"Index recommendations analysis failed: {str(e)}")
+        return json.dumps({"status": "error", "error": str(e)})
+
+
 def main():
     """Main entry point for the MCP server application."""
     parser = argparse.ArgumentParser(
