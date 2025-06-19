@@ -839,9 +839,7 @@ async def recommend_indexes(
                 tablename,
                 attname as column_name,
                 n_distinct,
-                correlation,
-                most_common_vals,
-                most_common_freqs
+                correlation
             FROM pg_stats
             WHERE schemaname NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
             AND n_distinct IS NOT NULL
