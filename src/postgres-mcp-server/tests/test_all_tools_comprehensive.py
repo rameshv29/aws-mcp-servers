@@ -41,8 +41,8 @@ def parse_execute_response(response: dict) -> list[dict]:
 
 async def test_sql_query(client, tool_name, query_name, sql, description="", validate_logic=None):
     """Test a single SQL query with optional logic validation."""
-    print(f"\n🧪 Testing {tool_name} - {query_name}")
-    print(f"📝 {description}")
+    print(f"\n Testing {tool_name} - {query_name}")
+    print(f" {description}")
     print("-" * 60)
     
     try:
@@ -57,33 +57,33 @@ async def test_sql_query(client, tool_name, query_name, sql, description="", val
         # Parse the result
         parsed_data = parse_execute_response(result)
         
-        print(f"✅ {query_name} - SQL SUCCESS")
-        print(f"📊 Returned {len(parsed_data)} rows, {len(result.get('columnMetadata', []))} columns")
+        print(f" {query_name} - SQL SUCCESS")
+        print(f" Returned {len(parsed_data)} rows, {len(result.get('columnMetadata', []))} columns")
         
         if parsed_data and len(parsed_data) > 0:
             sample_data = str(parsed_data[0])
             if len(sample_data) > 150:
                 sample_data = sample_data[:150] + "..."
-            print(f"📋 Sample data: {sample_data}")
+            print(f" Sample data: {sample_data}")
         
         # Run additional logic validation if provided
         if validate_logic:
             try:
                 logic_result = validate_logic(parsed_data)
                 if logic_result:
-                    print(f"✅ {query_name} - LOGIC VALIDATION PASSED")
+                    print(f" {query_name} - LOGIC VALIDATION PASSED")
                 else:
-                    print(f"⚠️  {query_name} - Logic validation returned False")
+                    print(f"  {query_name} - Logic validation returned False")
                     return False
             except Exception as e:
-                print(f"❌ {query_name} - LOGIC VALIDATION FAILED: {e}")
+                print(f" {query_name} - LOGIC VALIDATION FAILED: {e}")
                 return False
         
         return True
         
     except Exception as e:
-        print(f"❌ {query_name} - SQL FAILED")
-        print(f"💥 Error: {str(e)}")
+        print(f" {query_name} - SQL FAILED")
+        print(f" Error: {str(e)}")
         return False
 
 
@@ -412,36 +412,36 @@ async def main():
     core_passed = 0
     for test_name in core_tools:
         if test_results.get(test_name, False):
-            print(f"✅ {test_name}")
+            print(f" {test_name}")
             core_passed += 1
         else:
-            print(f"❌ {test_name}")
+            print(f" {test_name}")
     
     print(f"\n📊 ANALYSIS TOOLS ({len(analysis_tools)} tests):")
     analysis_passed = 0
     for test_name in analysis_tools:
         if test_results.get(test_name, False):
-            print(f"✅ {test_name}")
+            print(f" {test_name}")
             analysis_passed += 1
         else:
-            print(f"❌ {test_name}")
+            print(f" {test_name}")
     
     total_passed = core_passed + analysis_passed
     total_tests = len(test_results)
     
-    print(f"\n📊 OVERALL RESULTS:")
-    print(f"✅ Core Tools: {core_passed}/{len(core_tools)} passed")
-    print(f"✅ Analysis Tools: {analysis_passed}/{len(analysis_tools)} passed")
-    print(f"✅ Total: {total_passed}/{total_tests} tests passed")
+    print(f"\n OVERALL RESULTS:")
+    print(f" Core Tools: {core_passed}/{len(core_tools)} passed")
+    print(f" Analysis Tools: {analysis_passed}/{len(analysis_tools)} passed")
+    print(f" Total: {total_passed}/{total_tests} tests passed")
     
     if total_passed == total_tests:
-        print(f"\n🎉 ALL TESTS PASSED! PostgreSQL MCP Server is fully validated!")
-        print("🚀 All 10 tools are ready for Q Chat integration")
+        print(f"\n ALL TESTS PASSED! PostgreSQL MCP Server is fully validated!")
+        print(" All 10 tools are ready for Q Chat integration")
     elif total_passed >= total_tests * 0.9:  # 90% pass rate
-        print(f"\n✅ MOST TESTS PASSED! PostgreSQL MCP Server is ready for Q Chat")
-        print("⚠️  Review any failed tests for potential issues")
+        print(f"\n MOST TESTS PASSED! PostgreSQL MCP Server is ready for Q Chat")
+        print("  Review any failed tests for potential issues")
     else:
-        print(f"\n⚠️  SEVERAL TESTS FAILED - Please review the issues above")
+        print(f"\n  SEVERAL TESTS FAILED - Please review the issues above")
     
     print("\n" + "=" * 70)
     print("🏁 Comprehensive test execution completed")

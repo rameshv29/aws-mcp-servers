@@ -41,7 +41,7 @@ def parse_execute_response(response: dict) -> list[dict]:
 
 async def test_table_fragmentation_types():
     """Test the table fragmentation analysis with type conversion."""
-    print("🧪 Testing Table Fragmentation Analysis Type Conversions")
+    print(" Testing Table Fragmentation Analysis Type Conversions")
     print("=" * 60)
     
     client = boto3.client('rds-data', region_name='us-west-2')
@@ -83,7 +83,7 @@ async def test_table_fragmentation_types():
         # Parse the result using the same logic as the server
         bloat_result = parse_execute_response(result)
         
-        print(f"✅ Query executed successfully, got {len(bloat_result)} tables")
+        print(f" Query executed successfully, got {len(bloat_result)} tables")
         
         # Test the type conversion logic (same as in the fixed tool)
         threshold = 10.0
@@ -111,15 +111,15 @@ async def test_table_fragmentation_types():
                         # Add the converted value back to the row for consistency
                         row['bloat_percent_numeric'] = bloat_percent_float
                         problematic_tables.append(row)
-                        print(f"   ⚠️  Added to problematic tables list")
+                        print(f"   Added to problematic tables list")
                     else:
-                        print(f"   ✅ Table is healthy (below threshold)")
+                        print(f"    Table is healthy (below threshold)")
                         
                 except (ValueError, TypeError) as e:
-                    print(f"   ❌ Conversion failed: {e}")
+                    print(f" Conversion failed: {e}")
                     continue
         
-        print(f"\\n📊 Summary:")
+        print(f"\\n Summary:")
         print(f"   Total tables analyzed: {len(bloat_result)}")
         print(f"   Tables above {threshold}% threshold: {len(problematic_tables)}")
         
@@ -146,12 +146,12 @@ async def test_table_fragmentation_types():
         
         # Test JSON serialization
         json_output = json.dumps(result_json, indent=2)
-        print(f"\\n✅ JSON serialization successful (length: {len(json_output)} chars)")
+        print(f"\\n JSON serialization successful (length: {len(json_output)} chars)")
         
         return True
         
     except Exception as e:
-        print(f"❌ Test failed: {e}")
+        print(f" Test failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -159,7 +159,7 @@ async def test_table_fragmentation_types():
 
 async def test_slow_queries_types():
     """Test the slow queries analysis to ensure no type issues."""
-    print("\\n🧪 Testing Slow Queries Analysis")
+    print("\\n Testing Slow Queries Analysis")
     print("=" * 60)
     
     client = boto3.client('rds-data', region_name='us-west-2')
@@ -206,11 +206,11 @@ async def test_slow_queries_types():
             )
             
             slow_queries_data = parse_execute_response(slow_queries_result)
-            print(f"✅ Slow queries query successful, got {len(slow_queries_data)} results")
+            print(f" Slow queries query successful, got {len(slow_queries_data)} results")
             
             # Check data types
             for i, row in enumerate(slow_queries_data[:2]):  # Just check first 2
-                print(f"\\n📋 Query {i+1}:")
+                print(f"\\n Query {i+1}:")
                 for key, value in row.items():
                     print(f"   {key}: {value} (type: {type(value)})")
         else:
@@ -219,13 +219,13 @@ async def test_slow_queries_types():
         return True
         
     except Exception as e:
-        print(f"❌ Test failed: {e}")
+        print(f" Test failed: {e}")
         return False
 
 
 async def main():
     """Run type conversion tests."""
-    print("🚀 PostgreSQL MCP Server - Type Conversion Tests")
+    print(" PostgreSQL MCP Server - Type Conversion Tests")
     print("=" * 70)
     
     # Set AWS profile
@@ -242,25 +242,25 @@ async def main():
     
     # Summary
     print("\\n" + "=" * 70)
-    print("📋 TYPE CONVERSION TEST RESULTS")
+    print(" TYPE CONVERSION TEST RESULTS")
     print("=" * 70)
     
     passed = sum(1 for result in test_results.values() if result)
     total = len(test_results)
     
     for test_name, result in test_results.items():
-        status = "✅ PASSED" if result else "❌ FAILED"
+        status = " PASSED" if result else " FAILED"
         print(f"{status} - {test_name}")
     
-    print(f"\\n📊 Overall: {passed}/{total} tests passed")
+    print(f"\\n Overall: {passed}/{total} tests passed")
     
     if passed == total:
-        print("🎉 ALL TYPE CONVERSION TESTS PASSED!")
-        print("✅ Table fragmentation analysis type conversion working")
-        print("✅ No type issues detected in other analysis tools")
-        print("🚀 PostgreSQL MCP Server is ready for Q Chat!")
+        print(" ALL TYPE CONVERSION TESTS PASSED!")
+        print(" Table fragmentation analysis type conversion working")
+        print(" No type issues detected in other analysis tools")
+        print(" PostgreSQL MCP Server is ready for Q Chat!")
     else:
-        print("⚠️  Some tests failed - please review the issues above")
+        print("  Some tests failed - please review the issues above")
 
 
 if __name__ == "__main__":

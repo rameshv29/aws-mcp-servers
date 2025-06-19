@@ -25,25 +25,7 @@ This MCP server provides tools for interacting with PostgreSQL databases, includ
 
 The server supports multiple connection methods:
 
-### 1. AWS RDS Data API (Recommended)
-
-- `resource_arn`: ARN of the RDS cluster or instance
-- `secret_arn`: ARN of the secret in AWS Secrets Manager containing credentials
-- `database`: Database name to connect to
-- `region`: AWS region where the resources are located
-- `readonly`: Enforce read-only operations (recommended: "true")
-
-**Usage:**
-```bash
-python -m awslabs.postgres_mcp_server.server \
-  --resource_arn "arn:aws:rds:region:account:cluster:cluster-name" \
-  --secret_arn "arn:aws:secretsmanager:region:account:secret:secret-name" \
-  --database "your-database-name" \
-  --region "us-west-2" \
-  --readonly "true"
-```
-
-### 2. Direct PostgreSQL Connection
+### 1. Direct PostgreSQL Connection (Recommended)
 
 - `hostname`: Database hostname or IP address
 - `port`: Database port (default: 5432)
@@ -62,6 +44,25 @@ python -m awslabs.postgres_mcp_server.server \
   --region "us-west-2" \
   --readonly "true"
 ```
+
+### 2. AWS RDS Data API (Aurora Postgres) 
+
+- `resource_arn`: ARN of the RDS cluster or instance
+- `secret_arn`: ARN of the secret in AWS Secrets Manager containing credentials
+- `database`: Database name to connect to
+- `region`: AWS region where the resources are located
+- `readonly`: Enforce read-only operations (recommended: "true")
+
+**Usage:**
+```bash
+python -m awslabs.postgres_mcp_server.server \
+  --resource_arn "arn:aws:rds:region:account:cluster:cluster-name" \
+  --secret_arn "arn:aws:secretsmanager:region:account:secret:secret-name" \
+  --database "your-database-name" \
+  --region "us-west-2" \
+  --readonly "true"
+```
+
 
 **Note:** Direct PostgreSQL connection uses the connection modules in the codebase but requires integration work to be fully functional with the current server implementation. Currently, only RDS Data API is fully integrated.
 
@@ -162,10 +163,10 @@ docker run -p 8000:8000 \
   postgres-mcp-server
 ```
 
-#### ⚠️ **SECURITY WARNING - DO NOT USE IN PRODUCTION**
+####  **SECURITY WARNING - DO NOT USE IN PRODUCTION**
 ```bash
-# ❌ INSECURE - Never hardcode credentials in Docker commands
-# ❌ This exposes credentials in process lists and Docker history
+#  INSECURE - Never hardcode credentials in Docker commands
+#  This exposes credentials in process lists and Docker history
 docker run -p 8000:8000 \
   -e AWS_ACCESS_KEY_ID=AKIA... \
   -e AWS_SECRET_ACCESS_KEY=... \
@@ -206,7 +207,7 @@ Configure the PostgreSQL MCP Server with Amazon Q Developer CLI by adding to you
 
 ### Security Best Practices for Q Chat Integration
 
-#### ✅ **Recommended: Use AWS Profiles**
+####  **Recommended: Use AWS Profiles**
 ```json
 {
   "env": {
@@ -216,7 +217,7 @@ Configure the PostgreSQL MCP Server with Amazon Q Developer CLI by adding to you
 }
 ```
 
-#### ❌ **NOT Recommended: Hardcoded Credentials**
+####  **NOT Recommended: Hardcoded Credentials**
 ```json
 {
   "env": {
@@ -233,7 +234,7 @@ Configure the PostgreSQL MCP Server with Amazon Q Developer CLI by adding to you
 
 This server uses AWS RDS Data API and requires proper AWS credentials. **Never hardcode credentials in configuration files or Docker commands.**
 
-#### ✅ **Recommended Approaches:**
+####  **Recommended Approaches:**
 
 1. **AWS Profiles** (Local Development)
    ```bash
@@ -250,17 +251,17 @@ This server uses AWS RDS Data API and requires proper AWS credentials. **Never h
    export AWS_PROFILE=your-sso-profile
    ```
 
-#### ❌ **Security Anti-Patterns to Avoid:**
+####  **Security Anti-Patterns to Avoid:**
 
 1. **Hardcoded Credentials in Docker**
    ```bash
-   # ❌ NEVER DO THIS
+   #  NEVER DO THIS
    docker run -e AWS_ACCESS_KEY_ID=AKIA... -e AWS_SECRET_ACCESS_KEY=...
    ```
 
 2. **Credentials in Configuration Files**
    ```json
-   // ❌ NEVER DO THIS
+   //  NEVER DO THIS
    {
      "env": {
        "AWS_ACCESS_KEY_ID": "AKIA...",
@@ -271,7 +272,7 @@ This server uses AWS RDS Data API and requires proper AWS credentials. **Never h
 
 3. **Credentials in Environment Variables (Production)**
    ```bash
-   # ❌ AVOID IN PRODUCTION
+   #  AVOID IN PRODUCTION
    export AWS_ACCESS_KEY_ID=AKIA...
    export AWS_SECRET_ACCESS_KEY=...
    ```

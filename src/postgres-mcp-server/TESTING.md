@@ -11,6 +11,7 @@ tests/
 ├── test_all_tools_comprehensive.py  # Comprehensive validation of all 10 tools
 ├── test_type_conversions.py         # Type conversion validation
 ├── test_server.py                   # Legacy unit tests
+├── test_connection_pool.py          # Connection pool unit tests
 └── __init__.py                      # Python package initialization
 ```
 
@@ -37,6 +38,16 @@ tests/
 - Ensures no "str vs float" comparison errors
 - **Usage**: `python tests/test_type_conversions.py`
 - **Expected Result**: Type conversion tests should pass
+
+#### `tests/test_connection_pool.py`
+**Purpose**: Unit tests for the connection pool implementation
+- Tests the `ConnectionPoolManager` class functionality
+- Validates connection creation, reuse, and health checks
+- Tests pool capacity limits and different connection types
+- Tests concurrency handling with multiple connection requests
+- Tests the enhanced `DBConnectionSingleton` with pooling support
+- **Usage**: `pytest tests/test_connection_pool.py -v`
+- **Expected Result**: All connection pool unit tests should pass
 
 ### Legacy Tests
 
@@ -73,6 +84,9 @@ python tests/test_type_conversions.py
 
 # Run legacy unit tests
 python tests/test_server.py
+
+# Run connection pool unit tests
+pytest tests/test_connection_pool.py -v
 ```
 
 #### 3. Run All Tests with pytest (If Available)
@@ -102,6 +116,7 @@ pytest tests/test_all_tools_comprehensive.py
 - ✅ **Logic validation** (business rules, thresholds)
 - ✅ **Error handling** and edge cases
 - ✅ **JSON response formatting**
+- ✅ **Connection pooling** (unit tests)
 
 ### Tool-by-Tool Coverage:
 1. **run_query**: Basic + complex query execution
@@ -164,7 +179,22 @@ python tests/test_type_conversions.py
 3. Update this documentation
 4. Ensure all tests pass before committing
 
+### Connection Pool Configuration
+
+The connection pool can be configured using environment variables:
+
+```bash
+# Set connection pool parameters
+export POSTGRES_POOL_MIN_SIZE=10  # Minimum pool size (default: 5)
+export POSTGRES_POOL_MAX_SIZE=50  # Maximum pool size (default: 30)
+export POSTGRES_POOL_TIMEOUT=60   # Connection timeout in seconds (default: 30)
+
+# Run tests with custom pool configuration
+pytest tests/test_connection_pool.py -v
+```
+
 ### Performance Notes
 - **Comprehensive test**: ~30-45 seconds (tests 17 queries)
 - **Type conversion test**: ~10-15 seconds (focused testing)
-- **Total coverage**: All 10 tools validated efficiently
+- **Connection pool tests**: ~10-15 seconds (unit tests)
+- **Total coverage**: All 10 tools and connection pooling validated efficiently
