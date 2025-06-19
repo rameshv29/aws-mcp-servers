@@ -69,8 +69,22 @@ class RDSDataAPIConnector:
             True if connection successful, False otherwise
         """
         try:
-            # Test connection with a simple query
-            await self.execute_query("SELECT 1")
+            # For RDS Data API, we just need to test that we can create a client
+            # and that our credentials work. We'll do a simple test without recursion.
+            client = self.client  # This creates the boto3 client
+            
+            # Test with a direct API call instead of using execute_query to avoid recursion
+            test_params = {
+                'resourceArn': self.resource_arn,
+                'secretArn': self.secret_arn,
+                'database': self.database,
+                'sql': 'SELECT 1',
+                'includeResultMetadata': True,
+            }
+            
+            # Direct call to test connection
+            await asyncio.to_thread(client.execute_statement, **test_params)
+            
             self._connected = True
             logger.info(f"Successfully connected to RDS Data API: {self.resource_arn}")
             return True
@@ -104,9 +118,7 @@ class RDSDataAPIConnector:
             ClientError: If AWS API call fails
             Exception: For other errors
         """
-        if not self._connected:
-            await self.connect()
-        
+        # Don't auto-connect here to avoid recursion - let the caller handle connection
         execute_params = {
             'resourceArn': self.resource_arn,
             'secretArn': self.secret_arn,

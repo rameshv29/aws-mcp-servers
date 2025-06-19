@@ -136,6 +136,10 @@ async def get_connection_from_params(
             readonly=final_readonly
         )
         
+        # Ensure connection is established
+        if connection and not connection.is_connected():
+            await connection.connect()
+        
         return connection
         
     except Exception as e:
@@ -623,30 +627,9 @@ def main():
     logger.info(f"Starting Enhanced PostgreSQL MCP Server")
     logger.info(f"Transport: {args.transport}")
     
-    # Test database connectivity if configuration is available
-    config = ConnectionFactory.get_connection_config()
-    if config.get('secret_arn') and (config.get('resource_arn') or config.get('hostname')):
-        logger.info("Testing database connectivity...")
-        try:
-            async def test_connection():
-                connection = await get_connection_from_params()
-                if connection:
-                    await connection.execute_query("SELECT 1")
-                    await connection_pool_manager.return_connection(connection)
-                    logger.success("Database connectivity test passed")
-                    return True
-                else:
-                    logger.warning("Database connectivity test failed - no connection")
-                    return False
-            
-            # Run the test
-            test_result = asyncio.run(test_connection())
-            if not test_result:
-                logger.warning("Database connectivity test failed - server will start but database operations may fail")
-        except Exception as e:
-            logger.warning(f"Database connectivity test failed: {str(e)} - server will start but database operations may fail")
-    else:
-        logger.info("No database configuration provided - tools will require connection parameters")
+    # Skip database connectivity test during startup to avoid delays
+    # The connection will be tested when first used
+    logger.info("Database connectivity will be tested on first use")
     
     # Start the server
     if args.transport == 'stdio':
