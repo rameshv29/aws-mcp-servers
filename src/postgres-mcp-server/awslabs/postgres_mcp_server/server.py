@@ -545,8 +545,24 @@ async def analyze_table_fragmentation(
         # Filter tables above threshold
         problematic_tables = []
         for row in bloat_result:
-            if 'error' not in row and row.get('bloat_percent', 0) > threshold:
-                problematic_tables.append(row)
+            if 'error' not in row:
+                # Convert bloat_percent from string to float for comparison
+                bloat_percent_value = row.get('bloat_percent', '0')
+                try:
+                    # Handle both string and numeric values
+                    if isinstance(bloat_percent_value, str):
+                        bloat_percent_float = float(bloat_percent_value)
+                    else:
+                        bloat_percent_float = float(bloat_percent_value) if bloat_percent_value is not None else 0.0
+                    
+                    if bloat_percent_float > threshold:
+                        # Add the converted value back to the row for consistency
+                        row['bloat_percent_numeric'] = bloat_percent_float
+                        problematic_tables.append(row)
+                except (ValueError, TypeError):
+                    # If conversion fails, skip this row but log it
+                    logger.warning(f"Could not convert bloat_percent '{bloat_percent_value}' to float for table {row.get('tablename', 'unknown')}")
+                    continue
         
         result = {
             "status": "success",
