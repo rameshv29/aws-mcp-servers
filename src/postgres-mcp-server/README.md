@@ -10,41 +10,28 @@ Converting human-readable questions and commands into structured PostgreSQL-comp
 
 This MCP server provides tools for interacting with PostgreSQL databases, including:
 
-1. Running SQL queries
-2. Analyzing database structure
-3. Analyzing query performance
-4. Recommending indexes
-5. Executing read-only queries
-6. Analyzing table fragmentation
-7. Analyzing vacuum statistics
-8. Identifying slow-running queries
-9. Viewing PostgreSQL configuration settings
+1. **Running SQL queries** with injection protection
+2. **Analyzing database structure** (schemas, tables, indexes)
+3. **Analyzing query performance** with EXPLAIN plans
+4. **Recommending indexes** based on table statistics
+5. **Executing read-only queries** with security validation
+6. **Analyzing table fragmentation** and bloat
+7. **Analyzing vacuum statistics** and maintenance needs
+8. **Identifying slow-running queries** (requires pg_stat_statements)
+9. **Viewing PostgreSQL configuration settings** with filtering
+10. **Health checking** server and database connectivity
 
 ## Connection Options
 
-The server supports multiple connection methods:
+The server uses **AWS RDS Data API** for secure, serverless database connections:
 
-### 1. AWS RDS Data API (preferred)
+### AWS RDS Data API (Current Implementation)
 
-- `secret_arn`: ARN of the secret in AWS Secrets Manager containing credentials
 - `resource_arn`: ARN of the RDS cluster or instance
+- `secret_arn`: ARN of the secret in AWS Secrets Manager containing credentials
 - `database`: Database name to connect to
-- `region_name`: AWS region where the resources are located (default: us-west-2)
-
-Note: You can directly pass the AWS Secret name when you call MCP server and MCP server is able to pull the credentials to connect RDS Data API. If your secret does not contain resource_arn and secret_arn, it will use the other attributes to connect the database via PostgreSQL connector. If both are not working you can pass manually all the credentials to connect to the PostgreSQL connector.
-
-### 2. AWS Secrets Manager with PostgreSQL connector
-
-- `secret_name`: Name of the secret in AWS Secrets Manager containing database credentials
-- `region_name`: AWS region where the secret is stored (default: us-west-2)
-
-### 3. Direct PostgreSQL connection
-
-- `host`: Database host
-- `port`: Database port (default: 5432)
-- `database`: Database name
-- `user`: Database username
-- `password`: Database password
+- `region`: AWS region where the resources are located
+- `readonly`: Enforce read-only operations (recommended: "true")
 
 ## Prerequisites
 
@@ -98,35 +85,86 @@ python3.10 -m venv .venv
 source .venv/bin/activate
 python3.10 -m pip install -r requirements.txt
 
-# Optional: Configure connection pool
-export POSTGRES_POOL_MIN_SIZE=10
-export POSTGRES_POOL_MAX_SIZE=50
+# Set AWS profile for secure credential access
+export AWS_PROFILE=your-profile-name
+export AWS_REGION=us-west-2
 
-python3.10 -m awslabs.postgresql_mcp_server.main
+# Run the server with required parameters
+python3.10 -m awslabs.postgres_mcp_server.server \
+  --resource_arn "arn:aws:rds:region:account:cluster:cluster-name" \
+  --secret_arn "arn:aws:secretsmanager:region:account:secret:secret-name" \
+  --database "your-database-name" \
+  --region "us-west-2" \
+  --readonly "true"
 ```
 
-### Using Docker
+### Using Docker (Recommended - Secure Credential Management)
 
+#### Option 1: AWS Credential File Mount (Recommended)
 ```bash
 cd postgres-mcp-server
 docker build -t postgres-mcp-server .
+
+# Mount AWS credentials from host
 docker run -p 8000:8000 \
-  -e AWS_ACCESS_KEY_ID=<your aws access key> \
-  -e AWS_SECRET_ACCESS_KEY=<your aws secret access key> \
-  -e AWS_SESSION_TOKEN=<your aws session token> \
-  -e POSTGRES_POOL_MIN_SIZE=5 \
-  -e POSTGRES_POOL_MAX_SIZE=30 \
+  -v ~/.aws:/root/.aws:ro \
+  -e AWS_PROFILE=your-profile-name \
   postgres-mcp-server
 ```
 
-## Here are some ways you can work with MCP across AWS, and we'll be adding support to more products including Amazon Q Developer CLI soon: (e.g. for Amazon Q Developer CLI MCP, `~/.aws/amazonq/mcp.json`):
+#### Option 2: IAM Roles (Production Recommended)
+```bash
+# For ECS/EKS deployments - use IAM roles for service accounts
+# No credential mounting needed - AWS SDK automatically uses IAM role
+
+docker run -p 8000:8000 \
+  postgres-mcp-server
+```
+
+#### Option 3: AWS SSO/CLI Integration
+```bash
+# After running 'aws sso login' on host
+docker run -p 8000:8000 \
+  -v ~/.aws:/root/.aws:ro \
+  -e AWS_PROFILE=your-sso-profile \
+  postgres-mcp-server
+```
+
+#### ⚠️ **SECURITY WARNING - DO NOT USE IN PRODUCTION**
+```bash
+# ❌ INSECURE - Never hardcode credentials in Docker commands
+# ❌ This exposes credentials in process lists and Docker history
+docker run -p 8000:8000 \
+  -e AWS_ACCESS_KEY_ID=AKIA... \
+  -e AWS_SECRET_ACCESS_KEY=... \
+  postgres-mcp-server
+```
+
+## Amazon Q Developer CLI Integration
+
+Configure the PostgreSQL MCP Server with Amazon Q Developer CLI by adding to your MCP configuration file (`~/.aws/amazonq/mcp.json`):
 
 ```json
 {
   "mcpServers": {
-    "postgresql-stream": {
-      "command": "npx",
-      "args": ["mcp-remote", "http://0.0.0.0:8000/mcp", "--allow-http"],
+    "postgresql-enhanced": {
+      "command": "python",
+      "args": [
+        "-m",
+        "awslabs.postgres_mcp_server.server",
+        "--resource_arn", "arn:aws:rds:us-west-2:123456789012:cluster:your-cluster-name",
+        "--secret_arn", "arn:aws:secretsmanager:us-west-2:123456789012:secret:your-secret-name",
+        "--database", "your-database-name",
+        "--region", "us-west-2",
+        "--readonly", "true"
+      ],
+      "cwd": "/path/to/postgres-mcp-server",
+      "env": {
+        "AWS_PROFILE": "your-profile-name",
+        "AWS_REGION": "us-west-2",
+        "PYTHONPATH": "/path/to/postgres-mcp-server"
+      },
+      "timeout": 30000,
       "disabled": false,
       "autoApprove": []
     }
@@ -134,20 +172,94 @@ docker run -p 8000:8000 \
 }
 ```
 
+### Security Best Practices for Q Chat Integration
+
+#### ✅ **Recommended: Use AWS Profiles**
+```json
+{
+  "env": {
+    "AWS_PROFILE": "your-profile-name",
+    "AWS_REGION": "us-west-2"
+  }
+}
+```
+
+#### ❌ **NOT Recommended: Hardcoded Credentials**
+```json
+{
+  "env": {
+    "AWS_ACCESS_KEY_ID": "AKIA...",
+    "AWS_SECRET_ACCESS_KEY": "...",
+    "AWS_SESSION_TOKEN": "..."
+  }
+}
+```
+
 ## Security
+
+### AWS Credential Management
+
+This server uses AWS RDS Data API and requires proper AWS credentials. **Never hardcode credentials in configuration files or Docker commands.**
+
+#### ✅ **Recommended Approaches:**
+
+1. **AWS Profiles** (Local Development)
+   ```bash
+   export AWS_PROFILE=your-profile-name
+   ```
+
+2. **IAM Roles** (Production - ECS/EKS)
+   - Use IAM roles for service accounts
+   - No credential management needed
+
+3. **AWS SSO** (Enterprise)
+   ```bash
+   aws sso login --profile your-sso-profile
+   export AWS_PROFILE=your-sso-profile
+   ```
+
+#### ❌ **Security Anti-Patterns to Avoid:**
+
+1. **Hardcoded Credentials in Docker**
+   ```bash
+   # ❌ NEVER DO THIS
+   docker run -e AWS_ACCESS_KEY_ID=AKIA... -e AWS_SECRET_ACCESS_KEY=...
+   ```
+
+2. **Credentials in Configuration Files**
+   ```json
+   // ❌ NEVER DO THIS
+   {
+     "env": {
+       "AWS_ACCESS_KEY_ID": "AKIA...",
+       "AWS_SECRET_ACCESS_KEY": "..."
+     }
+   }
+   ```
+
+3. **Credentials in Environment Variables (Production)**
+   ```bash
+   # ❌ AVOID IN PRODUCTION
+   export AWS_ACCESS_KEY_ID=AKIA...
+   export AWS_SECRET_ACCESS_KEY=...
+   ```
+
+### Database Security
 
 All operations are performed in read-only mode for security reasons. The server includes:
 
-1. SQL injection protection
-2. Validation of read-only queries
-3. Detection of mutating SQL keywords
+1. **SQL injection protection** - Query validation and sanitization
+2. **Read-only enforcement** - Validation of mutating SQL keywords
+3. **Connection security** - Uses AWS RDS Data API with IAM authentication
 
 ## Tools
 
-### connect_database
+The PostgreSQL MCP Server provides 10 comprehensive tools for database analysis and management:
 
+### Core Database Tools (3)
+
+#### connect_database
 Connect to a PostgreSQL database and store the connection in the session.
-
 ```
 connect_database(
     secret_name: str = None, 
@@ -155,204 +267,86 @@ connect_database(
     secret_arn: str = None, 
     resource_arn: str = None, 
     database: str = None,
-    host: str = None,
-    port: int = None,
-    user: str = None,
-    password: str = None,
     readonly: bool = True
 ) -> str
 ```
 
-### disconnect_database
-
-Disconnect from the PostgreSQL database and remove the connection from the session.
-
-```
-disconnect_database() -> str
-```
-
-### run_query
-
-Run a SQL query against a PostgreSQL database.
-
+#### run_query
+Run a SQL query against a PostgreSQL database with injection protection.
 ```
 run_query(sql: str) -> list[dict]
 ```
 
-### get_table_schema
-
+#### get_table_schema
 Fetch table schema from the PostgreSQL database.
-
 ```
 get_table_schema(table_name: str, database_name: str) -> list[dict]
 ```
 
-### analyze_database_structure
+#### health_check
+Check if the server is running and responsive.
+```
+health_check() -> Dict[str, Any]
+```
 
+### Database Analysis Tools (7)
+
+#### analyze_database_structure
 Analyze the database structure and provide insights on schema design, indexes, and potential optimizations.
-
 ```
-analyze_database_structure(
-    secret_name: str = None, 
-    region_name: str = "us-west-2",
-    secret_arn: str = None, 
-    resource_arn: str = None, 
-    database: str = None,
-    host: str = None,
-    port: int = None,
-    user: str = None,
-    password: str = None,
+analyze_database_structure(debug: bool = False) -> str
+```
+
+#### show_postgresql_settings
+Show PostgreSQL configuration settings with optional filtering.
+```
+show_postgresql_settings(
+    pattern: str = None,
     debug: bool = False
 ) -> str
 ```
 
-### analyze_query
-
-Analyze a SQL query and provide optimization recommendations.
-
-```
-analyze_query(
-    query: str,
-    secret_name: str = None, 
-    region_name: str = "us-west-2",
-    secret_arn: str = None, 
-    resource_arn: str = None, 
-    database: str = None,
-    host: str = None,
-    port: int = None,
-    user: str = None,
-    password: str = None,
-    debug: bool = False
-) -> str
-```
-
-### recommend_indexes
-
-Recommend indexes for a given SQL query.
-
-```
-recommend_indexes(
-    query: str,
-    secret_name: str = None, 
-    region_name: str = "us-west-2",
-    secret_arn: str = None, 
-    resource_arn: str = None, 
-    database: str = None,
-    host: str = None,
-    port: int = None,
-    user: str = None,
-    password: str = None,
-    debug: bool = False
-) -> str
-```
-
-### execute_read_only_query
-
-Execute a read-only SQL query and return the results.
-
-```
-execute_read_only_query(
-    query: str,
-    secret_name: str = None, 
-    region_name: str = "us-west-2",
-    secret_arn: str = None, 
-    resource_arn: str = None, 
-    database: str = None,
-    host: str = None,
-    port: int = None,
-    user: str = None,
-    password: str = None,
-    max_rows: int = 100,
-    debug: bool = False
-) -> str
-```
-
-### analyze_table_fragmentation
-
-Analyze table fragmentation and provide optimization recommendations.
-
-```
-analyze_table_fragmentation(
-    secret_name: str = None, 
-    region_name: str = "us-west-2",
-    secret_arn: str = None, 
-    resource_arn: str = None, 
-    database: str = None,
-    host: str = None,
-    port: int = None,
-    user: str = None,
-    password: str = None,
-    threshold: float = 10.0,
-    debug: bool = False
-) -> str
-```
-
-### analyze_vacuum_stats
-
-Analyze vacuum statistics and provide recommendations for vacuum settings.
-
-```
-analyze_vacuum_stats(
-    secret_name: str = None, 
-    region_name: str = "us-west-2",
-    secret_arn: str = None, 
-    resource_arn: str = None, 
-    database: str = None,
-    host: str = None,
-    port: int = None,
-    user: str = None,
-    password: str = None,
-    debug: bool = False
-) -> str
-```
-
-### identify_slow_queries
-
-Identify slow-running queries in the database.
-
+#### identify_slow_queries
+Identify slow-running queries in the database (requires pg_stat_statements extension).
 ```
 identify_slow_queries(
-    secret_name: str = None, 
-    region_name: str = "us-west-2",
-    secret_arn: str = None, 
-    resource_arn: str = None, 
-    database: str = None,
-    host: str = None,
-    port: int = None,
-    user: str = None,
-    password: str = None,
     min_execution_time: float = 100.0,
     limit: int = 20,
     debug: bool = False
 ) -> str
 ```
 
-### show_postgresql_settings
-
-Show PostgreSQL configuration settings with optional filtering.
-
+#### analyze_table_fragmentation
+Analyze table fragmentation and provide optimization recommendations.
 ```
-show_postgresql_settings(
-    pattern: str = None,
-    secret_name: str = None, 
-    region_name: str = "us-west-2",
-    secret_arn: str = None, 
-    resource_arn: str = None, 
-    database: str = None,
-    host: str = None,
-    port: int = None,
-    user: str = None,
-    password: str = None,
+analyze_table_fragmentation(
+    threshold: float = 10.0,
     debug: bool = False
 ) -> str
 ```
 
-### health_check
-
-Check if the server is running and responsive.
-
+#### analyze_query_performance
+Analyze a SQL query and provide optimization recommendations.
 ```
-health_check() -> Dict[str, Any]
+analyze_query_performance(
+    query: str,
+    debug: bool = False
+) -> str
+```
+
+#### analyze_vacuum_stats
+Analyze vacuum statistics and provide recommendations for vacuum settings.
+```
+analyze_vacuum_stats(debug: bool = False) -> str
+```
+
+#### recommend_indexes
+Recommend indexes for database optimization based on query patterns.
+```
+recommend_indexes(
+    query: str = None,
+    debug: bool = False
+) -> str
 ```
 
 ## Dependencies
@@ -365,6 +359,20 @@ health_check() -> Dict[str, Any]
 - psycopg2-binary
 - starlette
 - uvicorn
+
+## Testing
+
+The server includes a comprehensive test suite to validate all functionality:
+
+```bash
+# Run comprehensive test suite (all 10 tools)
+python tests/test_all_tools_comprehensive.py
+
+# Run type conversion validation
+python tests/test_type_conversions.py
+```
+
+For detailed testing information, see [TESTING.md](TESTING.md).
 
 ## Development and Testing
 
