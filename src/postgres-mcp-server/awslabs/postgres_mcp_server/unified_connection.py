@@ -156,10 +156,17 @@ class UnifiedDBConnection:
             raise
     
     async def test_connection(self) -> bool:
-        """Test the database connection."""
+        """Test the database connection without full initialization."""
         try:
-            result = await self.execute_query("SELECT 1 as test")
-            return len(result.get('records', [])) > 0
+            if self.connection_type == "rds_data_api":
+                # For RDS Data API, just test with a simple query
+                result = await self.execute_query("SELECT 1 as test")
+                return len(result.get('records', [])) > 0
+            elif self.connection_type == "direct_postgres":
+                # For Direct PostgreSQL, just validate parameters
+                return await self.postgres_connector.test_connection_parameters()
+            else:
+                return False
         except Exception as e:
             logger.error(f"Connection test failed: {str(e)}")
             return False

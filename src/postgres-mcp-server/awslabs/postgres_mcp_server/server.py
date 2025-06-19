@@ -874,18 +874,36 @@ def main():
         logger.exception(f'Failed to initialize {connection_display} connection. Exiting.')
         sys.exit(1)
 
-    # Test database connection
+    # Test database connection with optimized approach
     class DummyCtx:
         async def error(self, message):
             pass
 
     ctx = DummyCtx()
-    response = asyncio.run(run_query('SELECT 1', ctx))
-    if isinstance(response, list) and len(response) == 1 and isinstance(response[0], dict) and 'error' in response[0]:
-        logger.error(f'Failed to validate {connection_display} database connection. Exiting.')
-        sys.exit(1)
+    
+    try:
+        db_connection = UnifiedDBConnectionSingleton.get().db_connection
+        
+        if connection_type == "rds_data_api":
+            # For RDS Data API, test with actual query (fast)
+            response = asyncio.run(run_query('SELECT 1', ctx))
+            if isinstance(response, list) and len(response) == 1 and isinstance(response[0], dict) and 'error' in response[0]:
+                logger.error(f'Failed to validate {connection_display} database connection. Exiting.')
+                sys.exit(1)
+        else:
+            # For Direct PostgreSQL, just validate parameters (fast)
+            connection_valid = asyncio.run(db_connection.test_connection())
+            if not connection_valid:
+                logger.warning(f'{connection_display} connection parameters validation failed.')
+                logger.warning('Connection will be established on first query.')
+            else:
+                logger.info(f'{connection_display} connection parameters validated successfully.')
+        
+    except Exception as e:
+        logger.warning(f'Connection validation failed: {str(e)}')
+        logger.warning('Server will start anyway - connection will be attempted on first query.')
 
-    logger.success(f'Successfully validated {connection_display} database connection')
+    logger.success(f'PostgreSQL MCP Server initialized with {connection_display}')
     logger.info('Starting PostgreSQL MCP Server with stdio transport')
     mcp.run(transport="stdio")
 
