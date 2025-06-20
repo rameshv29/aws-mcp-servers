@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Unified connection manager that supports both RDS Data API and Direct PostgreSQL connections.
-"""
+"""Unified connection manager that supports both RDS Data API and Direct PostgreSQL connections."""
 
 import boto3
 import asyncio

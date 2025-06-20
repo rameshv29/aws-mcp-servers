@@ -34,7 +34,7 @@ async def analyze_database_structure(
     Returns:
         Dictionary containing structured analysis results
     """
-    analysis_start_time = logger.info("Starting comprehensive database structure analysis")
+    logger.info("Starting comprehensive database structure analysis")
     
     try:
         # Get schemas

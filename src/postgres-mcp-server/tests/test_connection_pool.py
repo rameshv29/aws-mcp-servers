@@ -41,17 +41,21 @@ class MockRDSConnector(AsyncMock):
         self.healthy = True
     
     async def connect(self):
+        """Connect to the database."""
         self.connected = True
         return True
     
     async def disconnect(self):
+        """Disconnect from the database."""
         self.connected = False
         return True
     
     async def health_check(self):
+        """Check if the connection is healthy."""
         return self.healthy
     
     async def execute_query(self, query, parameters=None):
+        """Execute a query on the database."""
         if not self.connected:
             raise Exception("Not connected")
         return [{"result": "mock_result"}]
@@ -72,17 +76,21 @@ class MockPostgreSQLConnector(AsyncMock):
         self.healthy = True
     
     async def connect(self):
+        """Connect to the database."""
         self.connected = True
         return True
     
     async def disconnect(self):
+        """Disconnect from the database."""
         self.connected = False
         return True
     
     async def health_check(self):
+        """Check if the connection is healthy."""
         return self.healthy
     
     async def execute_query(self, query, parameters=None):
+        """Execute a query on the database."""
         if not self.connected:
             raise Exception("Not connected")
         return [{"result": "mock_result"}]

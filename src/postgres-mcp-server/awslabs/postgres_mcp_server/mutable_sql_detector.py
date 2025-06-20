@@ -14,6 +14,7 @@
 
 """
 SQL mutation detection for PostgreSQL MCP server.
+
 This module provides functions to detect SQL statements that would modify the database.
 """
 

@@ -507,7 +507,7 @@ python -m pytest tests/test_tools.py
 To run integration tests, set the following environment variables:
 ```bash
 export POSTGRES_MCP_TEST_RESOURCE_ARN="your-resource-arn"
-export POSTGRES_MCP_TEST_SECRET_ARN="your-secret-arn"
+export POSTGRES_MCP_TEST_SECRET_ARN="your-secret-arn"  # pragma: allowlist secret
 export POSTGRES_MCP_TEST_DATABASE="your-database"
 export POSTGRES_MCP_TEST_REGION="your-region"
 python -m pytest tests/test_integration.py -v

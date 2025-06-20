@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Test script to validate performance optimizations for Direct PostgreSQL connection.
-"""
+"""Test script to validate performance optimizations for Direct PostgreSQL connection."""
 
 import asyncio
 import os
