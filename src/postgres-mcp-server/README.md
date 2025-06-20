@@ -37,11 +37,11 @@ The server supports multiple connection methods:
 **Usage:**
 ```bash
 python -m awslabs.postgres_mcp_server.server \
-  --hostname "your-db-host.amazonaws.com" \
+  --hostname "[your-db-host.amazonaws.com]" \
   --port 5432 \
-  --secret_arn "arn:aws:secretsmanager:region:account:secret:secret-name" \  # pragma: allowlist secret
-  --database "your-database-name" \
-  --region "us-west-2" \
+  --secret_arn "[your data]" \  
+  --database "your database name]" \
+  --region "[your data]" \
   --readonly "true"
 ```
 
@@ -56,10 +56,10 @@ python -m awslabs.postgres_mcp_server.server \
 **Usage:**
 ```bash
 python -m awslabs.postgres_mcp_server.server \
-  --resource_arn "arn:aws:rds:region:account:cluster:cluster-name" \
-  --secret_arn "arn:aws:secretsmanager:region:account:secret:secret-name" \  # pragma: allowlist secret
-  --database "your-database-name" \
-  --region "us-west-2" \
+  --resource_arn "[your data]" \
+  --secret_arn "[your data]" \  # pragma: allowlist secret
+  --database "[your database name]" \
+  --region "[your data]" \
   --readonly "true"
 ```
 
@@ -127,9 +127,9 @@ export AWS_REGION=us-west-2
 
 # Run the server
 python -m awslabs.postgres_mcp_server.server \
-  --resource_arn "arn:aws:rds:region:account:cluster:cluster-name" \
-  --secret_arn "arn:aws:secretsmanager:region:account:secret:secret-name" \  # pragma: allowlist secret
-  --database "your-database-name" \
+  --resource_arn "[your data]" \
+  --secret_arn "[your data]" \  # pragma: allowlist secret
+  --database "[your database name]" \
   --region "us-west-2" \
   --readonly "true"
 ```
@@ -145,10 +145,10 @@ pip install -e .
 
 # Now you can run from any directory
 python -m awslabs.postgres_mcp_server.server \
-  --resource_arn "arn:aws:rds:region:account:cluster:cluster-name" \
-  --secret_arn "arn:aws:secretsmanager:region:account:secret:secret-name" \  # pragma: allowlist secret
-  --database "your-database-name" \
-  --region "us-west-2" \
+  --resource_arn "[your data]" \
+  --secret_arn "[your data]" \  # pragma: allowlist secret
+  --database "[your database name]" \
+  --region "[your data]" \
   --readonly "true"
 ```
 
@@ -160,9 +160,9 @@ export PYTHONPATH=/path/to/aws-mcp-servers/src/postgres-mcp-server:$PYTHONPATH
 
 # Run the server
 python -m awslabs.postgres_mcp_server.server \
-  --resource_arn "arn:aws:rds:region:account:cluster:cluster-name" \
-  --secret_arn "arn:aws:secretsmanager:region:account:secret:secret-name" \  # pragma: allowlist secret
-  --database "your-database-name" \
+  --resource_arn "[your data]" \
+  --secret_arn "[your data]" \  # pragma: allowlist secret
+  --database "[your database name]" \
   --region "us-west-2" \
   --readonly "true"
 ```
@@ -251,10 +251,10 @@ Configure the PostgreSQL MCP Server with Amazon Q Developer CLI by adding to you
       "args": [
         "-m",
         "awslabs.postgres_mcp_server.server",
-        "--resource_arn", "arn:aws:rds:us-west-2:123456789012:cluster:your-cluster-name",
-        "--secret_arn", "arn:aws:secretsmanager:us-west-2:123456789012:secret:your-secret-name",  # pragma: allowlist secret
-        "--database", "your-database-name",
-        "--region", "us-west-2",
+        "--resource_arn", "[your data]",
+        "--secret_arn", "[your data]",  
+        "--database", "[your database name]",
+        "--region", "[your data]",
         "--readonly", "true"
       ],
       "cwd": "/path/to/postgres-mcp-server",
