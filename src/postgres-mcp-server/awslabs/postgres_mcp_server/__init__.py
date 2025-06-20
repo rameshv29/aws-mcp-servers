@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""PostgreSQL MCP Server package."""
+"""awslabs.postgres-mcp-server"""
 
 __version__ = '1.0.0'
