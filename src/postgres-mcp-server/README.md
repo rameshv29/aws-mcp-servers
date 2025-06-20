@@ -39,7 +39,7 @@ The server supports multiple connection methods:
 python -m awslabs.postgres_mcp_server.server \
   --hostname "[your-db-host.amazonaws.com]" \
   --port 5432 \
-  --secret_arn "[your data]" \  
+  --secret_arn "[your data]" \  # pragma: allowlist secret
   --database "your database name]" \
   --region "[your data]" \
   --readonly "true"
@@ -48,7 +48,7 @@ python -m awslabs.postgres_mcp_server.server \
 ### 2. AWS RDS Data API (Aurora Postgres) 
 
 - `resource_arn`: ARN of the RDS cluster or instance
-- `secret_arn`: ARN of the secret in AWS Secrets Manager containing credentials
+- `secret_arn`: ARN of the secret in AWS Secrets Manager containing credentials 
 - `database`: Database name to connect to
 - `region`: AWS region where the resources are located
 - `readonly`: Enforce read-only operations (recommended: "true")
