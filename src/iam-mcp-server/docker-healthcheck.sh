@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,6 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""PostgreSQL MCP Server package."""
+# Simple health check for the IAM MCP Server
+# This script checks if the server can start and respond to basic requests
 
-__version__ = '1.0.2'
+set -e
+
+# Check if the server can import and start
+timeout 10s python -c "
+import sys
+sys.path.insert(0, '/app')
+from awslabs.iam_mcp_server.server import mcp
+print('IAM MCP Server health check passed')
+" || exit 1
+
+echo "Health check completed successfully"

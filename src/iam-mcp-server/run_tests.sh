@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,6 +14,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""PostgreSQL MCP Server package."""
+set -e
 
-__version__ = '1.0.2'
+echo "Running AWS IAM MCP Server tests..."
+
+# Install dependencies
+echo "Installing dependencies..."
+uv sync --dev
+
+# Run linting
+echo "Running linting..."
+uv run ruff check .
+uv run ruff format --check .
+
+# Run type checking
+echo "Running type checking..."
+uv run pyright
+
+# Run tests
+echo "Running tests..."
+uv run pytest tests/ -v --cov=awslabs.iam_mcp_server --cov-report=term-missing
+
+echo "All tests completed successfully!"

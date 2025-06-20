@@ -134,6 +134,7 @@ class PostgreSQLConnector:
     async def test_connection_parameters(self) -> bool:
         """
         Test if connection parameters are valid without establishing full connection.
+        
         This is used for startup validation.
         
         Returns:

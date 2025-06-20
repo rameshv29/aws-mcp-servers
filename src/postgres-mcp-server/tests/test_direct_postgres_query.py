@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Test script to isolate Direct PostgreSQL query execution issues.
-"""
+"""Test script to isolate Direct PostgreSQL query execution issues."""
 
 import asyncio
 import os

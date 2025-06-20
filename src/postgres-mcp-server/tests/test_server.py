@@ -105,14 +105,14 @@ class TestDBConnection:
         """Test initializing a DBConnection."""
         connection = DBConnection(
             'cluster_arn',
-            'secret_arn',
+            'secret_arn', # pragma: allowlist secret
             'database',
             'region',
             True,
             is_test=True,
         )
         assert connection.cluster_arn == 'cluster_arn'
-        assert connection.secret_arn == 'secret_arn'
+        assert connection.secret_arn == 'secret_arn' # pragma: allowlist secret
         assert connection.database == 'database'
         assert connection.readonly is True
 
@@ -120,7 +120,7 @@ class TestDBConnection:
         """Test the readonly_query property."""
         connection = DBConnection(
             'cluster_arn',
-            'secret_arn',
+            'secret_arn', # pragma: allowlist secret
             'database',
             'region',
             True,
@@ -141,7 +141,7 @@ class TestDBConnectionSingleton:
         """Test initializing the singleton."""
         DBConnectionSingleton.initialize(
             'resource_arn',
-            'secret_arn',
+            'secret_arn', # pragma: allowlist secret
             'database',
             'region',
             True,
@@ -159,7 +159,7 @@ class TestDBConnectionSingleton:
         """Test getting the singleton after initializing it."""
         DBConnectionSingleton.initialize(
             'resource_arn',
-            'secret_arn',
+            'secret_arn', # pragma: allowlist secret
             'database',
             'region',
             True,
@@ -173,7 +173,7 @@ class TestDBConnectionSingleton:
         with pytest.raises(ValueError):
             DBConnectionSingleton.initialize(
                 None,
-                'secret_arn',
+                'secret_arn', # pragma: allowlist secret
                 'database',
                 'region',
                 True,
@@ -194,7 +194,7 @@ class TestRunQuery:
         db_connection = MagicMock()
         db_connection.readonly_query = False
         db_connection.cluster_arn = 'cluster_arn'
-        db_connection.secret_arn = 'secret_arn'
+        db_connection.secret_arn = 'secret_arn' # pragma: allowlist secret
         db_connection.database = 'database'
 
         # Mock response from execute_statement
@@ -215,7 +215,7 @@ class TestRunQuery:
         # Check that execute_statement was called with the correct parameters
         db_connection.data_client.execute_statement.assert_called_once_with(
             resourceArn='cluster_arn',
-            secretArn='secret_arn',
+            secretArn='secret_arn', # pragma: allowlist secret
             database='database',
             sql='SELECT 1',
             includeResultMetadata=True,

@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""PostgreSQL MCP Server package."""
+"""AWS IAM MCP Server."""
 
-__version__ = '1.0.2'
+__version__ = '1.0.0'

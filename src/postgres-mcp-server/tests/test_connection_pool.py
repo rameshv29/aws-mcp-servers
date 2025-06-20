@@ -31,8 +31,9 @@ class MockRDSConnector(AsyncMock):
     """Mock RDS Data API connector for testing."""
     
     def __init__(self, *args, **kwargs):
+        """Initialize the mock RDS connector with default values."""
         super().__init__(*args, **kwargs)
-        self.resource_arn = kwargs.get('resource_arn', 'mock_resource_arn')  # pragma: allowlist secret
+        self.resource_arn = kwargs.get('resource_arn', 'mock_resource_arn')  
         self.secret_arn = kwargs.get('secret_arn', 'mock_secret_arn')  # pragma: allowlist secret
         self.database = kwargs.get('database', 'mock_database')
         self.region_name = kwargs.get('region_name', 'us-west-2')
@@ -41,17 +42,21 @@ class MockRDSConnector(AsyncMock):
         self.healthy = True
     
     async def connect(self):
+        """Connect to the database."""
         self.connected = True
         return True
     
     async def disconnect(self):
+        """Disconnect from the database."""
         self.connected = False
         return True
     
     async def health_check(self):
+        """Check if the connection is healthy."""
         return self.healthy
     
     async def execute_query(self, query, parameters=None):
+        """Execute a query on the database."""
         if not self.connected:
             raise Exception("Not connected")
         return [{"result": "mock_result"}]
@@ -61,6 +66,7 @@ class MockPostgreSQLConnector(AsyncMock):
     """Mock direct PostgreSQL connector for testing."""
     
     def __init__(self, *args, **kwargs):
+        """Initialize the mock PostgreSQL connector with default values."""
         super().__init__(*args, **kwargs)
         self.hostname = kwargs.get('hostname', 'mock_hostname')
         self.port = kwargs.get('port', 5432)
@@ -72,17 +78,21 @@ class MockPostgreSQLConnector(AsyncMock):
         self.healthy = True
     
     async def connect(self):
+        """Connect to the database."""
         self.connected = True
         return True
     
     async def disconnect(self):
+        """Disconnect from the database."""
         self.connected = False
         return True
     
     async def health_check(self):
+        """Check if the connection is healthy."""
         return self.healthy
     
     async def execute_query(self, query, parameters=None):
+        """Execute a query on the database."""
         if not self.connected:
             raise Exception("Not connected")
         return [{"result": "mock_result"}]
@@ -175,7 +185,7 @@ class TestConnectionPoolManager:
         # Get a connection
         connection = await pool_manager.get_connection(
             secret_arn='test_secret',  # pragma: allowlist secret
-            resource_arn='test_resource',  # pragma: allowlist secret
+            resource_arn='test_resource',
             database='test_db'
         )
         
@@ -196,7 +206,7 @@ class TestConnectionPoolManager:
         # Get a connection
         connection1 = await pool_manager.get_connection(
             secret_arn='test_secret',  # pragma: allowlist secret
-            resource_arn='test_resource',  # pragma: allowlist secret
+            resource_arn='test_resource',  
             database='test_db'
         )
         
@@ -205,7 +215,7 @@ class TestConnectionPoolManager:
         
         # Get another connection with the same parameters
         connection2 = await pool_manager.get_connection(
-            secret_arn='test_secret',
+            secret_arn='test_secret', # pragma: allowlist secret
             resource_arn='test_resource',
             database='test_db'
         )
@@ -223,14 +233,14 @@ class TestConnectionPoolManager:
         """Test that getting a connection creates a new one when all existing are in use."""
         # Get a connection
         connection1 = await pool_manager.get_connection(
-            secret_arn='test_secret',
+            secret_arn='test_secret', # pragma: allowlist secret
             resource_arn='test_resource',
             database='test_db'
         )
         
         # Get another connection without returning the first
         connection2 = await pool_manager.get_connection(
-            secret_arn='test_secret',
+            secret_arn='test_secret', # pragma: allowlist secret
             resource_arn='test_resource',
             database='test_db'
         )
@@ -248,7 +258,7 @@ class TestConnectionPoolManager:
         """Test returning a connection to the pool."""
         # Get a connection
         connection = await pool_manager.get_connection(
-            secret_arn='test_secret',
+            secret_arn='test_secret', # pragma: allowlist secret
             resource_arn='test_resource',
             database='test_db'
         )
@@ -269,7 +279,7 @@ class TestConnectionPoolManager:
         """Test that health check removes unhealthy connections."""
         # Get a connection
         connection = await pool_manager.get_connection(
-            secret_arn='test_secret',
+            secret_arn='test_secret', # pragma: allowlist secret
             resource_arn='test_resource',
             database='test_db'
         )
@@ -282,7 +292,7 @@ class TestConnectionPoolManager:
         
         # Try to get a connection again
         new_connection = await pool_manager.get_connection(
-            secret_arn='test_secret',
+            secret_arn='test_secret', # pragma: allowlist secret
             resource_arn='test_resource',
             database='test_db'
         )
@@ -305,7 +315,7 @@ class TestConnectionPoolManager:
         connections = []
         for _ in range(pool_manager.max_size):
             conn = await pool_manager.get_connection(
-                secret_arn='test_secret',
+                secret_arn='test_secret', # pragma: allowlist secret
                 resource_arn='test_resource',
                 database='test_db'
             )
@@ -318,7 +328,7 @@ class TestConnectionPoolManager:
         # Try to get one more connection - should raise an exception
         with pytest.raises(Exception) as excinfo:
             await pool_manager.get_connection(
-                secret_arn='test_secret',
+                secret_arn='test_secret', # pragma: allowlist secret
                 resource_arn='test_resource',
                 database='test_db'
             )
@@ -338,7 +348,7 @@ class TestConnectionPoolManager:
             mock_factory.create_pool_key.return_value = "rds_pool_key"
             
             rds_connection = await pool_manager.get_connection(
-                secret_arn='test_secret',
+                secret_arn='test_secret', # pragma: allowlist secret
                 resource_arn='test_resource',
                 database='test_db'
             )
@@ -351,7 +361,7 @@ class TestConnectionPoolManager:
             mock_factory.create_pool_key.return_value = "postgres_pool_key"
             
             postgres_connection = await pool_manager.get_connection(
-                secret_arn='test_secret',
+                secret_arn='test_secret', # pragma: allowlist secret
                 hostname='localhost',
                 database='test_db'
             )
@@ -371,7 +381,7 @@ class TestConnectionPoolManager:
         connections = []
         for _ in range(3):
             conn = await pool_manager.get_connection(
-                secret_arn='test_secret',
+                secret_arn='test_secret', # pragma: allowlist secret
                 resource_arn='test_resource',
                 database='test_db'
             )
@@ -398,7 +408,7 @@ class TestConnectionPoolManager:
         connections = []
         for _ in range(3):
             conn = await pool_manager.get_connection(
-                secret_arn='test_secret',
+                secret_arn='test_secret', # pragma: allowlist secret
                 resource_arn='test_resource',
                 database='test_db'
             )
@@ -433,7 +443,7 @@ class TestConnectionPoolConcurrency:
         # Create multiple concurrent tasks to get connections
         async def get_connection():
             conn = await pool_manager.get_connection(
-                secret_arn='test_secret',
+                secret_arn='test_secret', # pragma: allowlist secret
                 resource_arn='test_resource',
                 database='test_db'
             )
@@ -474,7 +484,7 @@ class TestEnhancedDBConnectionSingleton:
         """Test initializing the singleton with RDS parameters."""
         # Initialize the singleton
         DBConnectionSingleton.initialize(
-            resource_arn='test_resource',  # pragma: allowlist secret
+            resource_arn='test_resource', 
             secret_arn='test_secret',  # pragma: allowlist secret
             database='test_db',
             region='us-west-2',
@@ -487,7 +497,7 @@ class TestEnhancedDBConnectionSingleton:
         # Check the singleton properties
         instance = DBConnectionSingleton.get()
         assert instance.resource_arn == 'test_resource'
-        assert instance.secret_arn == 'test_secret'
+        assert instance.secret_arn == 'test_secret' # pragma: allowlist secret
         assert instance.database == 'test_db'
         assert instance.region == 'us-west-2'
         assert instance.readonly is True
@@ -513,7 +523,7 @@ class TestEnhancedDBConnectionSingleton:
         # Check the singleton properties
         instance = DBConnectionSingleton.get()
         assert instance.resource_arn is None
-        assert instance.secret_arn == 'test_secret'
+        assert instance.secret_arn == 'test_secret' # pragma: allowlist secret
         assert instance.database == 'test_db'
         assert instance.region == 'us-west-2'
         assert instance.readonly is True
@@ -532,7 +542,7 @@ class TestEnhancedDBConnectionSingleton:
         # Initialize the singleton
         DBConnectionSingleton.initialize(
             resource_arn='test_resource',
-            secret_arn='test_secret',
+            secret_arn='test_secret', # pragma: allowlist secret
             database='test_db',
             region='us-west-2',
             readonly=True
@@ -547,7 +557,7 @@ class TestEnhancedDBConnectionSingleton:
         
         # Check that the pool manager was called with the right parameters
         mock_pool_manager.get_connection.assert_called_once_with(
-            secret_arn='test_secret',
+            secret_arn='test_secret', # pragma: allowlist secret
             region_name='us-west-2',
             resource_arn='test_resource',
             database='test_db',
@@ -570,7 +580,7 @@ class TestEnhancedDBConnectionSingleton:
         # Initialize the singleton
         DBConnectionSingleton.initialize(
             resource_arn='test_resource',
-            secret_arn='test_secret',
+            secret_arn='test_secret', # pragma: allowlist secret
             database='test_db',
             region='us-west-2',
             readonly=True
@@ -578,7 +588,7 @@ class TestEnhancedDBConnectionSingleton:
         
         # Get a connection
         instance = DBConnectionSingleton.get()
-        connection = await instance.get_connection()
+        await instance.get_connection()
         
         # Return it
         await instance.return_connection()
@@ -596,7 +606,7 @@ class TestEnhancedDBConnectionSingleton:
         # Initialize the singleton
         DBConnectionSingleton.initialize(
             resource_arn='test_resource',
-            secret_arn='test_secret',
+            secret_arn='test_secret', # pragma: allowlist secret
             database='test_db',
             region='us-west-2',
             readonly=True
@@ -607,7 +617,7 @@ class TestEnhancedDBConnectionSingleton:
         wrapper = instance.db_connection
         
         # Check wrapper properties
-        assert wrapper.cluster_arn == 'test_resource'  # pragma: allowlist secret
+        assert wrapper.cluster_arn == 'test_resource'  
         assert wrapper.secret_arn == 'test_secret'  # pragma: allowlist secret
         assert wrapper.database == 'test_db'
         assert wrapper.readonly_query is True
@@ -634,7 +644,7 @@ class TestConnectionPoolResourceManagement:
         for _ in range(100):  # Run enough cycles to potentially expose leaks
             # Get a connection
             connection = await pool_manager.get_connection(
-                secret_arn='test_secret',
+                secret_arn='test_secret', # pragma: allowlist secret
                 resource_arn='test_resource',
                 database='test_db'
             )
@@ -664,7 +674,7 @@ class TestConnectionPoolResourceManagement:
         """Test that connections are properly cleaned up even when errors occur."""
         # Set up a connection that will fail during use
         connection = await pool_manager.get_connection(
-            secret_arn='test_secret',
+            secret_arn='test_secret', # pragma: allowlist secret
             resource_arn='test_resource',
             database='test_db'
         )
@@ -684,7 +694,7 @@ class TestConnectionPoolResourceManagement:
         
         # Get a new connection
         new_connection = await pool_manager.get_connection(
-            secret_arn='test_secret',
+            secret_arn='test_secret', # pragma: allowlist secret
             resource_arn='test_resource',
             database='test_db'
         )
@@ -708,7 +718,7 @@ class TestConnectionPoolResourceManagement:
         # Create and immediately close many connections
         for _ in range(20):
             conn = await pool_manager.get_connection(
-                secret_arn='test_secret',
+                secret_arn='test_secret', # pragma: allowlist secret
                 resource_arn='test_resource',
                 database='test_db'
             )
@@ -762,7 +772,7 @@ class TestConnectionPoolErrorHandling:
         # Try to get a connection
         with pytest.raises(Exception) as excinfo:
             await pool_manager.get_connection(
-                secret_arn='test_secret',
+                secret_arn='test_secret', # pragma: allowlist secret
                 resource_arn='test_resource',
                 database='test_db'
             )
@@ -782,7 +792,7 @@ class TestConnectionPoolErrorHandling:
             # Try to get a connection
             with pytest.raises(ValueError) as excinfo:
                 await pool_manager.get_connection(
-                    secret_arn='test_secret',
+                    secret_arn='test_secret', # pragma: allowlist secret
                     resource_arn='test_resource',
                     database='test_db'
                 )

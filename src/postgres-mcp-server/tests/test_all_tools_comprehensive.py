@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Comprehensive test suite for all PostgreSQL MCP Server tools.
+
 This tests all 10 tools with their SQL queries, logic validation, and error handling.
 """
 

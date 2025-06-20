@@ -37,18 +37,18 @@ The server supports multiple connection methods:
 **Usage:**
 ```bash
 python -m awslabs.postgres_mcp_server.server \
-  --hostname "your-db-host.amazonaws.com" \
+  --hostname "[your-db-host.amazonaws.com]" \
   --port 5432 \
-  --secret_arn "arn:aws:secretsmanager:region:account:secret:secret-name" \
-  --database "your-database-name" \
-  --region "us-west-2" \
+  --secret_arn "[your data]" \  # pragma: allowlist secret
+  --database "your database name]" \
+  --region "[your data]" \
   --readonly "true"
 ```
 
 ### 2. AWS RDS Data API (Aurora Postgres) 
 
 - `resource_arn`: ARN of the RDS cluster or instance
-- `secret_arn`: ARN of the secret in AWS Secrets Manager containing credentials
+- `secret_arn`: ARN of the secret in AWS Secrets Manager containing credentials 
 - `database`: Database name to connect to
 - `region`: AWS region where the resources are located
 - `readonly`: Enforce read-only operations (recommended: "true")
@@ -56,10 +56,10 @@ python -m awslabs.postgres_mcp_server.server \
 **Usage:**
 ```bash
 python -m awslabs.postgres_mcp_server.server \
-  --resource_arn "arn:aws:rds:region:account:cluster:cluster-name" \
-  --secret_arn "arn:aws:secretsmanager:region:account:secret:secret-name" \
-  --database "your-database-name" \
-  --region "us-west-2" \
+  --resource_arn "[your data]" \
+  --secret_arn "[your data]" \  
+  --database "[your database name]" \
+  --region "[your data]" \
   --readonly "true"
 ```
 
@@ -127,10 +127,10 @@ export AWS_REGION=us-west-2
 
 # Run the server
 python -m awslabs.postgres_mcp_server.server \
-  --resource_arn "arn:aws:rds:region:account:cluster:cluster-name" \
-  --secret_arn "arn:aws:secretsmanager:region:account:secret:secret-name" \
-  --database "your-database-name" \
-  --region "us-west-2" \
+  --resource_arn "[your data]" \
+  --secret_arn "[your data]" \  
+  --database "[your database name]" \
+  --region "[your data]" \
   --readonly "true"
 ```
 
@@ -145,10 +145,10 @@ pip install -e .
 
 # Now you can run from any directory
 python -m awslabs.postgres_mcp_server.server \
-  --resource_arn "arn:aws:rds:region:account:cluster:cluster-name" \
-  --secret_arn "arn:aws:secretsmanager:region:account:secret:secret-name" \
-  --database "your-database-name" \
-  --region "us-west-2" \
+  --resource_arn "[your data]" \
+  --secret_arn "[your data]" \  
+  --database "[your database name]" \
+  --region "[your data]" \
   --readonly "true"
 ```
 
@@ -160,10 +160,10 @@ export PYTHONPATH=/path/to/aws-mcp-servers/src/postgres-mcp-server:$PYTHONPATH
 
 # Run the server
 python -m awslabs.postgres_mcp_server.server \
-  --resource_arn "arn:aws:rds:region:account:cluster:cluster-name" \
-  --secret_arn "arn:aws:secretsmanager:region:account:secret:secret-name" \
-  --database "your-database-name" \
-  --region "us-west-2" \
+  --resource_arn "[your data]" \
+  --secret_arn "[your data]" \  
+  --database "[your database name]" \
+  --region "[your data]" \
   --readonly "true"
 ```
 
@@ -225,7 +225,7 @@ docker run -p 8000:8000 \
 # After running 'aws sso login' on host
 docker run -p 8000:8000 \
   -v ~/.aws:/root/.aws:ro \
-  -e AWS_PROFILE=your-sso-profile \
+  -e AWS_PROFILE=[your-sso-profile] \
   postgres-mcp-server
 ```
 
@@ -234,8 +234,8 @@ docker run -p 8000:8000 \
 #  INSECURE - Never hardcode credentials in Docker commands
 #  This exposes credentials in process lists and Docker history
 docker run -p 8000:8000 \
-  -e AWS_ACCESS_KEY_ID=AKIA... \
-  -e AWS_SECRET_ACCESS_KEY=... \
+  -e AWS_ACCESS_KEY_ID=[your data] \  
+  -e AWS_SECRET_ACCESS_KEY=[your data] \  
   postgres-mcp-server
 ```
 
@@ -251,16 +251,16 @@ Configure the PostgreSQL MCP Server with Amazon Q Developer CLI by adding to you
       "args": [
         "-m",
         "awslabs.postgres_mcp_server.server",
-        "--resource_arn", "arn:aws:rds:us-west-2:123456789012:cluster:your-cluster-name",
-        "--secret_arn", "arn:aws:secretsmanager:us-west-2:123456789012:secret:your-secret-name",
-        "--database", "your-database-name",
-        "--region", "us-west-2",
+        "--resource_arn", "[your data]",
+        "--secret_arn", "[your data]",  
+        "--database", "[your database name]",
+        "--region", "[your data]",
         "--readonly", "true"
       ],
       "cwd": "/path/to/postgres-mcp-server",
       "env": {
         "AWS_PROFILE": "your-profile-name",
-        "AWS_REGION": "us-west-2",
+        "AWS_REGION": "[your data]",
         "PYTHONPATH": "/path/to/postgres-mcp-server"
       },
       "timeout": 30000,
@@ -278,7 +278,7 @@ Configure the PostgreSQL MCP Server with Amazon Q Developer CLI by adding to you
 {
   "env": {
     "AWS_PROFILE": "your-profile-name",
-    "AWS_REGION": "us-west-2"
+    "AWS_REGION": "your data"
   }
 }
 ```
@@ -287,9 +287,9 @@ Configure the PostgreSQL MCP Server with Amazon Q Developer CLI by adding to you
 ```json
 {
   "env": {
-    "AWS_ACCESS_KEY_ID": "AKIA...",
-    "AWS_SECRET_ACCESS_KEY": "...",
-    "AWS_SESSION_TOKEN": "..."
+    "AWS_ACCESS_KEY_ID": "[your data]",  
+    "AWS_SECRET_ACCESS_KEY": "[your data]",  
+    "AWS_SESSION_TOKEN": "[your data]"  
   }
 }
 ```
@@ -322,7 +322,7 @@ This server uses AWS RDS Data API and requires proper AWS credentials. **Never h
 1. **Hardcoded Credentials in Docker**
    ```bash
    #  NEVER DO THIS
-   docker run -e AWS_ACCESS_KEY_ID=AKIA... -e AWS_SECRET_ACCESS_KEY=...
+   docker run -e AWS_ACCESS_KEY_ID=[your data] -e AWS_SECRET_ACCESS_KEY=[your data]  
    ```
 
 2. **Credentials in Configuration Files**
@@ -330,8 +330,8 @@ This server uses AWS RDS Data API and requires proper AWS credentials. **Never h
    //  NEVER DO THIS
    {
      "env": {
-       "AWS_ACCESS_KEY_ID": "AKIA...",
-       "AWS_SECRET_ACCESS_KEY": "..."
+       "AWS_ACCESS_KEY_ID": "[your data]", 
+       "AWS_SECRET_ACCESS_KEY": "[your data]" 
      }
    }
    ```
@@ -339,8 +339,8 @@ This server uses AWS RDS Data API and requires proper AWS credentials. **Never h
 3. **Credentials in Environment Variables (Production)**
    ```bash
    #  AVOID IN PRODUCTION
-   export AWS_ACCESS_KEY_ID=AKIA...
-   export AWS_SECRET_ACCESS_KEY=...
+   export AWS_ACCESS_KEY_ID=[your data]
+   export AWS_SECRET_ACCESS_KEY=[your data]
    ```
 
 ### Database Security
@@ -507,7 +507,7 @@ python -m pytest tests/test_tools.py
 To run integration tests, set the following environment variables:
 ```bash
 export POSTGRES_MCP_TEST_RESOURCE_ARN="your-resource-arn"
-export POSTGRES_MCP_TEST_SECRET_ARN="your-secret-arn"
+export POSTGRES_MCP_TEST_SECRET_ARN="your-secret-arn"  # pragma: allowlist secret
 export POSTGRES_MCP_TEST_DATABASE="your-database"
 export POSTGRES_MCP_TEST_REGION="your-region"
 python -m pytest tests/test_integration.py -v
