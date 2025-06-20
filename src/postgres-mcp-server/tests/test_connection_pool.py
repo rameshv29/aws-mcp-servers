@@ -31,6 +31,7 @@ class MockRDSConnector(AsyncMock):
     """Mock RDS Data API connector for testing."""
     
     def __init__(self, *args, **kwargs):
+        """Initialize the mock RDS connector with default values."""
         super().__init__(*args, **kwargs)
         self.resource_arn = kwargs.get('resource_arn', 'mock_resource_arn')  
         self.secret_arn = kwargs.get('secret_arn', 'mock_secret_arn')  # pragma: allowlist secret
@@ -65,6 +66,7 @@ class MockPostgreSQLConnector(AsyncMock):
     """Mock direct PostgreSQL connector for testing."""
     
     def __init__(self, *args, **kwargs):
+        """Initialize the mock PostgreSQL connector with default values."""
         super().__init__(*args, **kwargs)
         self.hostname = kwargs.get('hostname', 'mock_hostname')
         self.port = kwargs.get('port', 5432)
@@ -586,7 +588,7 @@ class TestEnhancedDBConnectionSingleton:
         
         # Get a connection
         instance = DBConnectionSingleton.get()
-        connection = await instance.get_connection()
+        await instance.get_connection()
         
         # Return it
         await instance.return_connection()
