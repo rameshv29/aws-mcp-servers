@@ -1,0 +1,2134 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://awslabs.github.io/mcp/servers/postgres-mcp-server/">
+      
+      
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.14">
+    
+    
+      
+        <title>Amazon Aurora Postgres MCP Server - AWS MCP Servers</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.342714a4.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        
+        <link rel="stylesheet" href="../../assets/external/fonts.googleapis.com/css.49ea35f2.css">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="dracula" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#postgresql-mcp-server" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="AWS MCP Servers" class="md-header__button md-logo" aria-label="AWS MCP Servers" data-md-component="logo">
+      
+  <img src="../../images/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            AWS MCP Servers
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Amazon Aurora Postgres MCP Server
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="dracula" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/awslabs/mcp" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    awslabs/mcp
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="AWS MCP Servers" class="md-nav__button md-logo" aria-label="AWS MCP Servers" data-md-component="logo">
+      
+  <img src="../../images/logo.png" alt="logo">
+
+    </a>
+    AWS MCP Servers
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/awslabs/mcp" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    awslabs/mcp
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    AWS MCP Servers
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            AWS MCP Servers
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../amazon-mq-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Amazon MQ MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../amazon-sns-sqs-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AWS SNS SQS MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../core-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Core MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bedrock-kb-retrieval-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Amazon Bedrock Knowledge Base Retrieval MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cdk-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AWS CDK MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cost-analysis-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cost Analysis MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cost-explorer-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cost Explorer MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../nova-canvas-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Amazon Nova Canvas MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../amazon-qindex-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Amazon Q index MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../amazon-rekognition-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Amazon Rekognition MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../aws-documentation-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AWS Documentation MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../iam-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AWS IAM MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../lambda-tool-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AWS Lambda Tool MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../aws-diagram-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AWS Diagram MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../stepfunctions-tool-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AWS Step Functions Tool MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../terraform-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AWS Terraform MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../elasticache-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Amazon ElastiCache MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../valkey-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Amazon ElastiCache/MemoryDB for Valkey MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memcached-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Amazon ElastiCache for Memcached MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../git-repo-research-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Git Repo Research MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../openapi-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    OpenAPI MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cfn-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CloudFormation MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../aws-serverless-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AWS Serverless MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../finch-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Finch MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../eks-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Amazon EKS MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ecs-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Amazon ECS MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../aws-support-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AWS Support MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prometheus-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AWS Managed Prometheus MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../timestream-for-influxdb-mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Amazon Timestream for InfluxDB MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Samples
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Samples
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../samples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../samples/mcp-integration-with-kb/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP Integration with Amazon Bedrock Knowledge Bases
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#natural-language-to-postgresql-sql-query" class="md-nav__link">
+    <span class="md-ellipsis">
+      Natural Language to PostgreSQL SQL Query
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connection-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      Connection Options
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Connection Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-direct-postgresql-connection-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Direct PostgreSQL Connection (Recommended)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-aws-rds-data-api-aurora-postgres" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. AWS RDS Data API (Aurora Postgres)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prerequisites
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#required-postgresql-extensions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Required PostgreSQL Extensions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connection-pool" class="md-nav__link">
+    <span class="md-ellipsis">
+      Connection Pool
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Connection Pool">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#connection-pool-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Connection Pool Configuration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-the-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running the Server
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Running the Server">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#method-1-navigate-to-project-directory-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      Method 1: Navigate to Project Directory (Recommended)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#method-2-install-in-development-mode-for-remote-hosts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Method 2: Install in Development Mode (For Remote Hosts)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#method-3-using-pythonpath-alternative" class="md-nav__link">
+    <span class="md-ellipsis">
+      Method 3: Using PYTHONPATH (Alternative)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#troubleshooting-common-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Troubleshooting Common Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting Common Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#issue-modulenotfounderror-no-module-named-postgres_mcp_server" class="md-nav__link">
+    <span class="md-ellipsis">
+      Issue: "ModuleNotFoundError: No module named 'postgres_mcp_server'"
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-no-such-file-or-directory-requirementstxt" class="md-nav__link">
+    <span class="md-ellipsis">
+      Issue: "No such file or directory: requirements.txt"
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-aws-credentials-not-found" class="md-nav__link">
+    <span class="md-ellipsis">
+      Issue: AWS credentials not found
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-docker-recommended-secure-credential-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using Docker (Recommended - Secure Credential Management)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Using Docker (Recommended - Secure Credential Management)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-1-aws-credential-file-mount-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      Option 1: AWS Credential File Mount (Recommended)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-2-iam-roles-production-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      Option 2: IAM Roles (Production Recommended)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-3-aws-ssocli-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Option 3: AWS SSO/CLI Integration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security-warning-do-not-use-in-production" class="md-nav__link">
+    <span class="md-ellipsis">
+      SECURITY WARNING - DO NOT USE IN PRODUCTION
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#amazon-q-developer-cli-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Amazon Q Developer CLI Integration
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Amazon Q Developer CLI Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#security-best-practices-for-q-chat-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Security Best Practices for Q Chat Integration
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Security Best Practices for Q Chat Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#recommended-use-aws-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recommended: Use AWS Profiles
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#not-recommended-hardcoded-credentials" class="md-nav__link">
+    <span class="md-ellipsis">
+      NOT Recommended: Hardcoded Credentials
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security" class="md-nav__link">
+    <span class="md-ellipsis">
+      Security
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Security">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aws-credential-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      AWS Credential Management
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AWS Credential Management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#recommended-approaches" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recommended Approaches:
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security-anti-patterns-to-avoid" class="md-nav__link">
+    <span class="md-ellipsis">
+      Security Anti-Patterns to Avoid:
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#database-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      Database Security
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tools
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-database-tools-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Core Database Tools (3)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Database Tools (3)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#connect_database" class="md-nav__link">
+    <span class="md-ellipsis">
+      connect_database
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run_query" class="md-nav__link">
+    <span class="md-ellipsis">
+      run_query
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get_table_schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      get_table_schema
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#health_check" class="md-nav__link">
+    <span class="md-ellipsis">
+      health_check
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#database-analysis-tools-7" class="md-nav__link">
+    <span class="md-ellipsis">
+      Database Analysis Tools (7)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Database Analysis Tools (7)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#analyze_database_structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      analyze_database_structure
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#show_postgresql_settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      show_postgresql_settings
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#identify_slow_queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      identify_slow_queries
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#analyze_table_fragmentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      analyze_table_fragmentation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#analyze_query_performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      analyze_query_performance
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#analyze_vacuum_stats" class="md-nav__link">
+    <span class="md-ellipsis">
+      analyze_vacuum_stats
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recommend_indexes" class="md-nav__link">
+    <span class="md-ellipsis">
+      recommend_indexes
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dependencies
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Testing
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#development-and-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Development and Testing
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Development and Testing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#setting-up-development-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Setting Up Development Environment
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running Tests
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Integration Tests
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="postgresql-mcp-server">PostgreSQL MCP Server</h1>
+<p>An AWS Labs Model Context Protocol (MCP) server (StreamableHTTP) for PostgreSQL databases.</p>
+<h2 id="natural-language-to-postgresql-sql-query">Natural Language to PostgreSQL SQL Query</h2>
+<p>Converting human-readable questions and commands into structured PostgreSQL-compatible SQL queries and executing them against the configured PostgreSQL database.</p>
+<h2 id="overview">Overview</h2>
+<p>This MCP server provides tools for interacting with PostgreSQL databases, including:</p>
+<ol>
+<li><strong>Running SQL queries</strong> with injection protection</li>
+<li><strong>Analyzing database structure</strong> (schemas, tables, indexes)</li>
+<li><strong>Analyzing query performance</strong> with EXPLAIN plans</li>
+<li><strong>Recommending indexes</strong> based on table statistics</li>
+<li><strong>Executing read-only queries</strong> with security validation</li>
+<li><strong>Analyzing table fragmentation</strong> and bloat</li>
+<li><strong>Analyzing vacuum statistics</strong> and maintenance needs</li>
+<li><strong>Identifying slow-running queries</strong> (requires pg_stat_statements)</li>
+<li><strong>Viewing PostgreSQL configuration settings</strong> with filtering</li>
+<li><strong>Health checking</strong> server and database connectivity</li>
+</ol>
+<h2 id="connection-options">Connection Options</h2>
+<p>The server supports multiple connection methods:</p>
+<h3 id="1-direct-postgresql-connection-recommended">1. Direct PostgreSQL Connection (Recommended)</h3>
+<ul>
+<li><code>hostname</code>: Database hostname or IP address</li>
+<li><code>port</code>: Database port (default: 5432)</li>
+<li><code>secret_arn</code>: ARN of the secret in AWS Secrets Manager containing credentials</li>
+<li><code>database</code>: Database name to connect to</li>
+<li><code>region</code>: AWS region where the secret is stored</li>
+<li><code>readonly</code>: Enforce read-only operations (recommended: "true")</li>
+</ul>
+<p><strong>Usage:</strong>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>awslabs.postgres_mcp_server.server<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--hostname<span class="w"> </span><span class="s2">&quot;[your-db-host.amazonaws.com]&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--port<span class="w"> </span><span class="m">5432</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--secret_arn<span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="w"> </span><span class="se">\ </span><span class="w"> </span><span class="c1"># pragma: allowlist secret</span>
+<span class="w">  </span>--database<span class="w"> </span><span class="s2">&quot;your database name]&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--region<span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--readonly<span class="w"> </span><span class="s2">&quot;true&quot;</span>
+</code></pre></div></p>
+<h3 id="2-aws-rds-data-api-aurora-postgres">2. AWS RDS Data API (Aurora Postgres)</h3>
+<ul>
+<li><code>resource_arn</code>: ARN of the RDS cluster or instance</li>
+<li><code>secret_arn</code>: ARN of the secret in AWS Secrets Manager containing credentials </li>
+<li><code>database</code>: Database name to connect to</li>
+<li><code>region</code>: AWS region where the resources are located</li>
+<li><code>readonly</code>: Enforce read-only operations (recommended: "true")</li>
+</ul>
+<p><strong>Usage:</strong>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>awslabs.postgres_mcp_server.server<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--resource_arn<span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--secret_arn<span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="w"> </span><span class="se">\ </span><span class="w"> </span>
+<span class="w">  </span>--database<span class="w"> </span><span class="s2">&quot;[your database name]&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--region<span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--readonly<span class="w"> </span><span class="s2">&quot;true&quot;</span>
+</code></pre></div></p>
+<p><strong>Note:</strong> Both connection methods are fully integrated and functional. The server automatically determines the connection type based on the parameters provided.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ol>
+<li>Install Python using <code>uv python install 3.10</code></li>
+<li>PostgreSQL database with username and password stored in AWS Secrets Manager</li>
+<li>Enable RDS Data API for your RDS PostgreSQL instance/cluster, see <a href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/data-api.html">instructions here</a></li>
+<li>This MCP server can be run locally on the same host as your LLM client or remotely (ECS, EKS etc.)</li>
+<li>Docker runtime </li>
+<li>Set up AWS credentials with access to AWS services<ul>
+<li>You need an AWS account with appropriate permissions</li>
+<li>Configure AWS credentials with <code>aws configure</code> or environment variables</li>
+</ul>
+</li>
+</ol>
+<h2 id="required-postgresql-extensions">Required PostgreSQL Extensions</h2>
+<p>For full functionality, the following PostgreSQL extensions should be enabled:</p>
+<ul>
+<li><code>pg_stat_statements</code>: Required for the <code>get_slow_queries</code> tool
+  <div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="n">EXTENSION</span><span class="w"> </span><span class="n">pg_stat_statements</span><span class="p">;</span>
+</code></pre></div></li>
+</ul>
+<p>For RDS instances, you need to:
+  1. Create a parameter group with <code>shared_preload_libraries = 'pg_stat_statements'</code>
+  2. Associate the parameter group with your RDS instance
+  3. Restart the instance
+  4. Run <code>CREATE EXTENSION pg_stat_statements;</code></p>
+<h2 id="connection-pool">Connection Pool</h2>
+<p>The server implements a connection pool for PostgreSQL connections to improve performance and resource utilization. The connection pool:</p>
+<ul>
+<li>Maintains a minimum number of database connections</li>
+<li>Limits the maximum number of concurrent connections</li>
+<li>Reuses connections across sessions</li>
+<li>Automatically handles connection lifecycle</li>
+</ul>
+<h3 id="connection-pool-configuration">Connection Pool Configuration</h3>
+<p>You can configure the connection pool using environment variables:</p>
+<ul>
+<li><code>POSTGRES_POOL_MIN_SIZE</code>: Minimum number of connections to keep in the pool (default: 5)</li>
+<li><code>POSTGRES_POOL_MAX_SIZE</code>: Maximum number of connections allowed in the pool (default: 30)</li>
+</ul>
+<h2 id="running-the-server">Running the Server</h2>
+<h3 id="method-1-navigate-to-project-directory-recommended">Method 1: Navigate to Project Directory (Recommended)</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Clone and navigate to the project</span>
+git<span class="w"> </span>clone<span class="w"> </span>https://github.com/your-repo/aws-mcp-servers.git
+<span class="nb">cd</span><span class="w"> </span>aws-mcp-servers/src/postgres-mcp-server
+
+<span class="c1"># Create virtual environment and install dependencies</span>
+python3<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv
+<span class="nb">source</span><span class="w"> </span>.venv/bin/activate<span class="w">  </span><span class="c1"># On Windows: .venv\Scripts\activate</span>
+pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements.txt
+
+<span class="c1"># Set AWS credentials</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">AWS_PROFILE</span><span class="o">=</span>your-profile-name
+<span class="nb">export</span><span class="w"> </span><span class="nv">AWS_REGION</span><span class="o">=</span>us-west-2
+
+<span class="c1"># Run the server</span>
+python<span class="w"> </span>-m<span class="w"> </span>awslabs.postgres_mcp_server.server<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--resource_arn<span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--secret_arn<span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="w"> </span><span class="se">\ </span><span class="w"> </span>
+<span class="w">  </span>--database<span class="w"> </span><span class="s2">&quot;[your database name]&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--region<span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--readonly<span class="w"> </span><span class="s2">&quot;true&quot;</span>
+</code></pre></div>
+<h3 id="method-2-install-in-development-mode-for-remote-hosts">Method 2: Install in Development Mode (For Remote Hosts)</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Navigate to the postgres-mcp-server directory</span>
+<span class="nb">cd</span><span class="w"> </span>/path/to/aws-mcp-servers/src/postgres-mcp-server
+
+<span class="c1"># Install in development mode (makes module available system-wide)</span>
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+
+<span class="c1"># Now you can run from any directory</span>
+python<span class="w"> </span>-m<span class="w"> </span>awslabs.postgres_mcp_server.server<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--resource_arn<span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--secret_arn<span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="w"> </span><span class="se">\ </span><span class="w"> </span>
+<span class="w">  </span>--database<span class="w"> </span><span class="s2">&quot;[your database name]&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--region<span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--readonly<span class="w"> </span><span class="s2">&quot;true&quot;</span>
+</code></pre></div>
+<h3 id="method-3-using-pythonpath-alternative">Method 3: Using PYTHONPATH (Alternative)</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># From any directory, set PYTHONPATH to include the postgres-mcp-server directory</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">PYTHONPATH</span><span class="o">=</span>/path/to/aws-mcp-servers/src/postgres-mcp-server:<span class="nv">$PYTHONPATH</span>
+
+<span class="c1"># Run the server</span>
+python<span class="w"> </span>-m<span class="w"> </span>awslabs.postgres_mcp_server.server<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--resource_arn<span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--secret_arn<span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="w"> </span><span class="se">\ </span><span class="w"> </span>
+<span class="w">  </span>--database<span class="w"> </span><span class="s2">&quot;[your database name]&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--region<span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--readonly<span class="w"> </span><span class="s2">&quot;true&quot;</span>
+</code></pre></div>
+<h3 id="troubleshooting-common-issues">Troubleshooting Common Issues</h3>
+<h4 id="issue-modulenotfounderror-no-module-named-postgres_mcp_server">Issue: "ModuleNotFoundError: No module named 'postgres_mcp_server'"</h4>
+<p><strong>Problem:</strong> Wrong module path or not in correct directory.</p>
+<p><strong>Solutions:</strong>
+1. <strong>Use correct module path:</strong> <code>awslabs.postgres_mcp_server.server</code> (not <code>postgres_mcp_server.server</code>)
+2. <strong>Navigate to correct directory:</strong> <code>cd /path/to/aws-mcp-servers/src/postgres-mcp-server</code>
+3. <strong>Set PYTHONPATH:</strong> <code>export PYTHONPATH=/path/to/postgres-mcp-server:$PYTHONPATH</code>
+4. <strong>Install in development mode:</strong> <code>pip install -e .</code></p>
+<h4 id="issue-no-such-file-or-directory-requirementstxt">Issue: "No such file or directory: requirements.txt"</h4>
+<p><strong>Problem:</strong> Missing requirements.txt file.</p>
+<p><strong>Solution:</strong> Use the requirements.txt file included in the repository, or install from pyproject.toml:
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</code></pre></div></p>
+<h4 id="issue-aws-credentials-not-found">Issue: AWS credentials not found</h4>
+<p><strong>Problem:</strong> AWS credentials not configured properly.</p>
+<p><strong>Solutions:</strong>
+1. <strong>Set AWS profile:</strong> <code>export AWS_PROFILE=your-profile-name</code>
+2. <strong>Configure AWS CLI:</strong> <code>aws configure</code>
+3. <strong>Use IAM roles</strong> (for EC2/ECS deployments)</p>
+<h3 id="using-docker-recommended-secure-credential-management">Using Docker (Recommended - Secure Credential Management)</h3>
+<h4 id="option-1-aws-credential-file-mount-recommended">Option 1: AWS Credential File Mount (Recommended)</h4>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>postgres-mcp-server
+docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>postgres-mcp-server<span class="w"> </span>.
+
+<span class="c1"># Mount AWS credentials from host</span>
+docker<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span><span class="m">8000</span>:8000<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-v<span class="w"> </span>~/.aws:/root/.aws:ro<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-e<span class="w"> </span><span class="nv">AWS_PROFILE</span><span class="o">=</span>your-profile-name<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>postgres-mcp-server
+</code></pre></div>
+<h4 id="option-2-iam-roles-production-recommended">Option 2: IAM Roles (Production Recommended)</h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># For ECS/EKS deployments - use IAM roles for service accounts</span>
+<span class="c1"># No credential mounting needed - AWS SDK automatically uses IAM role</span>
+
+docker<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span><span class="m">8000</span>:8000<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>postgres-mcp-server
+</code></pre></div>
+<h4 id="option-3-aws-ssocli-integration">Option 3: AWS SSO/CLI Integration</h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># After running &#39;aws sso login&#39; on host</span>
+docker<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span><span class="m">8000</span>:8000<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-v<span class="w"> </span>~/.aws:/root/.aws:ro<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-e<span class="w"> </span><span class="nv">AWS_PROFILE</span><span class="o">=[</span>your-sso-profile<span class="o">]</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>postgres-mcp-server
+</code></pre></div>
+<h4 id="security-warning-do-not-use-in-production"><strong>SECURITY WARNING - DO NOT USE IN PRODUCTION</strong></h4>
+<div class="highlight"><pre><span></span><code><span class="c1">#  INSECURE - Never hardcode credentials in Docker commands</span>
+<span class="c1">#  This exposes credentials in process lists and Docker history</span>
+docker<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span><span class="m">8000</span>:8000<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-e<span class="w"> </span><span class="nv">AWS_ACCESS_KEY_ID</span><span class="o">=[</span>your<span class="w"> </span>data<span class="o">]</span><span class="w"> </span><span class="se">\ </span><span class="w"> </span>
+<span class="w">  </span>-e<span class="w"> </span><span class="nv">AWS_SECRET_ACCESS_KEY</span><span class="o">=[</span>your<span class="w"> </span>data<span class="o">]</span><span class="w"> </span><span class="se">\ </span><span class="w"> </span>
+<span class="w">  </span>postgres-mcp-server
+</code></pre></div>
+<h2 id="amazon-q-developer-cli-integration">Amazon Q Developer CLI Integration</h2>
+<p>Configure the PostgreSQL MCP Server with Amazon Q Developer CLI by adding to your MCP configuration file (<code>~/.aws/amazonq/mcp.json</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;postgresql-enhanced&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;python&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;args&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="s2">&quot;-m&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;awslabs.postgres_mcp_server.server&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;--resource_arn&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;--secret_arn&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="p">,</span><span class="w">  </span>
+<span class="w">        </span><span class="s2">&quot;--database&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;[your database name]&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;--region&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;--readonly&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;true&quot;</span>
+<span class="w">      </span><span class="p">],</span>
+<span class="w">      </span><span class="nt">&quot;cwd&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/postgres-mcp-server&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;env&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;AWS_PROFILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;your-profile-name&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;AWS_REGION&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;PYTHONPATH&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/path/to/postgres-mcp-server&quot;</span>
+<span class="w">      </span><span class="p">},</span>
+<span class="w">      </span><span class="nt">&quot;timeout&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">30000</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;disabled&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;autoApprove&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="security-best-practices-for-q-chat-integration">Security Best Practices for Q Chat Integration</h3>
+<h4 id="recommended-use-aws-profiles"><strong>Recommended: Use AWS Profiles</strong></h4>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;env&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;AWS_PROFILE&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;your-profile-name&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;AWS_REGION&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;your data&quot;</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h4 id="not-recommended-hardcoded-credentials"><strong>NOT Recommended: Hardcoded Credentials</strong></h4>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;env&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;AWS_ACCESS_KEY_ID&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="p">,</span><span class="w">  </span>
+<span class="w">    </span><span class="nt">&quot;AWS_SECRET_ACCESS_KEY&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="p">,</span><span class="w">  </span>
+<span class="w">    </span><span class="nt">&quot;AWS_SESSION_TOKEN&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="w">  </span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h2 id="security">Security</h2>
+<h3 id="aws-credential-management">AWS Credential Management</h3>
+<p>This server uses AWS RDS Data API and requires proper AWS credentials. <strong>Never hardcode credentials in configuration files or Docker commands.</strong></p>
+<h4 id="recommended-approaches"><strong>Recommended Approaches:</strong></h4>
+<ol>
+<li>
+<p><strong>AWS Profiles</strong> (Local Development)
+   <div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">AWS_PROFILE</span><span class="o">=</span>your-profile-name
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>IAM Roles</strong> (Production - ECS/EKS)</p>
+</li>
+<li>Use IAM roles for service accounts</li>
+<li>
+<p>No credential management needed</p>
+</li>
+<li>
+<p><strong>AWS SSO</strong> (Enterprise)
+   <div class="highlight"><pre><span></span><code>aws<span class="w"> </span>sso<span class="w"> </span>login<span class="w"> </span>--profile<span class="w"> </span>your-sso-profile
+<span class="nb">export</span><span class="w"> </span><span class="nv">AWS_PROFILE</span><span class="o">=</span>your-sso-profile
+</code></pre></div></p>
+</li>
+</ol>
+<h4 id="security-anti-patterns-to-avoid"><strong>Security Anti-Patterns to Avoid:</strong></h4>
+<ol>
+<li>
+<p><strong>Hardcoded Credentials in Docker</strong>
+   <div class="highlight"><pre><span></span><code><span class="c1">#  NEVER DO THIS</span>
+docker<span class="w"> </span>run<span class="w"> </span>-e<span class="w"> </span><span class="nv">AWS_ACCESS_KEY_ID</span><span class="o">=[</span>your<span class="w"> </span>data<span class="o">]</span><span class="w"> </span>-e<span class="w"> </span><span class="nv">AWS_SECRET_ACCESS_KEY</span><span class="o">=[</span>your<span class="w"> </span>data<span class="o">]</span><span class="w">  </span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Credentials in Configuration Files</strong>
+   <div class="highlight"><pre><span></span><code><span class="c1">//  NEVER DO THIS</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;env&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;AWS_ACCESS_KEY_ID&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="p">,</span><span class="w"> </span>
+<span class="w">    </span><span class="nt">&quot;AWS_SECRET_ACCESS_KEY&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;[your data]&quot;</span><span class="w"> </span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Credentials in Environment Variables (Production)</strong>
+   <div class="highlight"><pre><span></span><code><span class="c1">#  AVOID IN PRODUCTION</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">AWS_ACCESS_KEY_ID</span><span class="o">=[</span>your<span class="w"> </span>data<span class="o">]</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">AWS_SECRET_ACCESS_KEY</span><span class="o">=[</span>your<span class="w"> </span>data<span class="o">]</span>
+</code></pre></div></p>
+</li>
+</ol>
+<h3 id="database-security">Database Security</h3>
+<p>All operations are performed in read-only mode for security reasons. The server includes:</p>
+<ol>
+<li><strong>SQL injection protection</strong> - Query validation and sanitization</li>
+<li><strong>Read-only enforcement</strong> - Validation of mutating SQL keywords</li>
+<li><strong>Connection security</strong> - Uses AWS RDS Data API with IAM authentication</li>
+</ol>
+<h2 id="tools">Tools</h2>
+<p>The PostgreSQL MCP Server provides 10 comprehensive tools for database analysis and management:</p>
+<h3 id="core-database-tools-3">Core Database Tools (3)</h3>
+<h4 id="connect_database">connect_database</h4>
+<p>Connect to a PostgreSQL database and store the connection in the session.
+<div class="highlight"><pre><span></span><code>connect_database(
+    secret_name: str = None, 
+    region_name: str = &quot;us-west-2&quot;,
+    secret_arn: str = None, 
+    resource_arn: str = None, 
+    database: str = None,
+    readonly: bool = True
+) -&gt; str
+</code></pre></div></p>
+<h4 id="run_query">run_query</h4>
+<p>Run a SQL query against a PostgreSQL database with injection protection.
+<div class="highlight"><pre><span></span><code>run_query(sql: str) -&gt; list[dict]
+</code></pre></div></p>
+<h4 id="get_table_schema">get_table_schema</h4>
+<p>Fetch table schema from the PostgreSQL database.
+<div class="highlight"><pre><span></span><code>get_table_schema(table_name: str, database_name: str) -&gt; list[dict]
+</code></pre></div></p>
+<h4 id="health_check">health_check</h4>
+<p>Check if the server is running and responsive.
+<div class="highlight"><pre><span></span><code>health_check() -&gt; Dict[str, Any]
+</code></pre></div></p>
+<h3 id="database-analysis-tools-7">Database Analysis Tools (7)</h3>
+<h4 id="analyze_database_structure">analyze_database_structure</h4>
+<p>Analyze the database structure and provide insights on schema design, indexes, and potential optimizations.
+<div class="highlight"><pre><span></span><code>analyze_database_structure(debug: bool = False) -&gt; str
+</code></pre></div></p>
+<h4 id="show_postgresql_settings">show_postgresql_settings</h4>
+<p>Show PostgreSQL configuration settings with optional filtering.
+<div class="highlight"><pre><span></span><code>show_postgresql_settings(
+    pattern: str = None,
+    debug: bool = False
+) -&gt; str
+</code></pre></div></p>
+<h4 id="identify_slow_queries">identify_slow_queries</h4>
+<p>Identify slow-running queries in the database (requires pg_stat_statements extension).
+<div class="highlight"><pre><span></span><code>identify_slow_queries(
+    min_execution_time: float = 100.0,
+    limit: int = 20,
+    debug: bool = False
+) -&gt; str
+</code></pre></div></p>
+<h4 id="analyze_table_fragmentation">analyze_table_fragmentation</h4>
+<p>Analyze table fragmentation and provide optimization recommendations.
+<div class="highlight"><pre><span></span><code>analyze_table_fragmentation(
+    threshold: float = 10.0,
+    debug: bool = False
+) -&gt; str
+</code></pre></div></p>
+<h4 id="analyze_query_performance">analyze_query_performance</h4>
+<p>Analyze a SQL query and provide optimization recommendations.
+<div class="highlight"><pre><span></span><code>analyze_query_performance(
+    query: str,
+    debug: bool = False
+) -&gt; str
+</code></pre></div></p>
+<h4 id="analyze_vacuum_stats">analyze_vacuum_stats</h4>
+<p>Analyze vacuum statistics and provide recommendations for vacuum settings.
+<div class="highlight"><pre><span></span><code>analyze_vacuum_stats(debug: bool = False) -&gt; str
+</code></pre></div></p>
+<h4 id="recommend_indexes">recommend_indexes</h4>
+<p>Recommend indexes for database optimization based on query patterns.
+<div class="highlight"><pre><span></span><code>recommend_indexes(
+    query: str = None,
+    debug: bool = False
+) -&gt; str
+</code></pre></div></p>
+<h2 id="dependencies">Dependencies</h2>
+<ul>
+<li>boto3</li>
+<li>botocore</li>
+<li>loguru</li>
+<li>mcp[cli]</li>
+<li>pydantic</li>
+<li>psycopg2-binary</li>
+<li>starlette</li>
+<li>uvicorn</li>
+</ul>
+<h2 id="testing">Testing</h2>
+<p>The server includes a comprehensive test suite to validate all functionality:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Run comprehensive test suite (all 10 tools)</span>
+python<span class="w"> </span>tests/test_all_tools_comprehensive.py
+
+<span class="c1"># Run type conversion validation</span>
+python<span class="w"> </span>tests/test_type_conversions.py
+</code></pre></div>
+<p>For detailed testing information, see <a href="TESTING.md">TESTING.md</a>.</p>
+<h2 id="development-and-testing">Development and Testing</h2>
+<h3 id="setting-up-development-environment">Setting Up Development Environment</h3>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>postgres-mcp-server
+python3.10<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv
+<span class="nb">source</span><span class="w"> </span>.venv/bin/activate
+python3.10<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements.txt<span class="w"> </span>-e<span class="w"> </span>.
+</code></pre></div>
+<h3 id="running-tests">Running Tests</h3>
+<p>Run all tests:
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/
+</code></pre></div></p>
+<p>Run tests with coverage:
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/<span class="w"> </span>--cov<span class="o">=</span>awslabs.postgresql_mcp_server<span class="w"> </span>--cov-report<span class="o">=</span>term<span class="w"> </span>--cov-report<span class="o">=</span>html
+</code></pre></div></p>
+<p>Run specific test files:
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/test_server.py
+python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/test_tools.py
+</code></pre></div></p>
+<h3 id="integration-tests">Integration Tests</h3>
+<p>To run integration tests, set the following environment variables:
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">POSTGRES_MCP_TEST_RESOURCE_ARN</span><span class="o">=</span><span class="s2">&quot;your-resource-arn&quot;</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">POSTGRES_MCP_TEST_SECRET_ARN</span><span class="o">=</span><span class="s2">&quot;your-secret-arn&quot;</span><span class="w">  </span><span class="c1"># pragma: allowlist secret</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">POSTGRES_MCP_TEST_DATABASE</span><span class="o">=</span><span class="s2">&quot;your-database&quot;</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">POSTGRES_MCP_TEST_REGION</span><span class="o">=</span><span class="s2">&quot;your-region&quot;</span>
+python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/test_integration.py<span class="w"> </span>-v
+</code></pre></div></p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      &copy; Amazon Web Services, Inc. or its affiliates. All rights reserved.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["search.suggest", "search.highlight", "navigation.instant"], "search": "../../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.13a4f30d.min.js"></script>
+      
+    
+  </body>
+</html>
