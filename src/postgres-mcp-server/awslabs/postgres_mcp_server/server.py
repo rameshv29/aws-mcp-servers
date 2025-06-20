@@ -28,6 +28,7 @@ from botocore.exceptions import BotoCoreError
 
 from .unified_connection import UnifiedDBConnectionSingleton
 from .connection.connection_factory import ConnectionFactory
+from .multi_database_manager import get_multi_database_manager, initialize_single_database_mode
 from .mutable_sql_detector import detect_mutating_keywords, check_sql_injection_risk
 from botocore.exceptions import ClientError
 
@@ -78,15 +79,24 @@ async def run_query(
     query_parameters: Annotated[
         Optional[List[Dict[str, Any]]], Field(description='Parameters for the SQL query')
     ] = None,
+    database_id: Annotated[
+        Optional[str], Field(description='Database identifier (optional, uses default if not specified)')
+    ] = None,
 ) -> list[dict]:
     """Run a SQL query using unified database connection (RDS Data API or Direct PostgreSQL)."""
     try:
-        db_connection = UnifiedDBConnectionSingleton.get().db_connection
+        # Get connection using multi-database manager
+        db_manager = get_multi_database_manager()
+        db_connection = db_manager.get_connection(database_id)
+        
+        # Log which database is being used
+        config = db_manager.get_database_config(database_id)
+        logger.info(f"run_query: connection_type:{config.connection_type}, readonly:{config.readonly}, database_id:{database_id or 'default'}, SQL:{sql[:100]}{'...' if len(sql) > 100 else ''}")
     except Exception as e:
         await ctx.error(f"No database connection available. Please configure the database first: {str(e)}")
         return [{'error': 'No database connection available'}]
 
-    if db_connection.readonly_query:
+    if config.readonly:
         matches = detect_mutating_keywords(sql)
         if matches:
             logger.info(f'Query rejected - readonly mode, detected keywords: {matches}')
@@ -100,8 +110,6 @@ async def run_query(
         return [{'error': QUERY_INJECTION_RISK_KEY}]
 
     try:
-        logger.info(f'run_query: connection_type:{db_connection.connection_type}, readonly:{db_connection.readonly_query}, SQL:{sql}')
-
         # Use unified connection to execute query
         response = await db_connection.execute_query(sql, query_parameters)
 
@@ -116,7 +124,11 @@ async def run_query(
 
 @mcp.tool(name='get_table_schema', description='Fetch table columns and comments from Postgres using RDS Data API')
 async def get_table_schema(
-    table_name: Annotated[str, Field(description='name of the table')], ctx: Context
+    table_name: Annotated[str, Field(description='name of the table')], 
+    ctx: Context,
+    database_id: Annotated[
+        Optional[str], Field(description='Database identifier (optional, uses default if not specified)')
+    ] = None,
 ) -> list[dict]:
     """Get a table's schema information given the table name."""
     logger.info(f'get_table_schema: {table_name}')
@@ -139,7 +151,7 @@ async def get_table_schema(
     """
 
     params = [{'name': 'table_name', 'value': {'stringValue': table_name}}]
-    return await run_query(sql=sql, ctx=ctx, query_parameters=params)
+    return await run_query(sql=sql, ctx=ctx, query_parameters=params, database_id=database_id)
 
 
 @mcp.tool(name='analyze_database_structure', description='Analyze the database structure and provide insights on schema design, indexes, and potential optimizations')
@@ -535,16 +547,26 @@ async def analyze_query_performance(
 
 
 @mcp.tool(name='health_check', description='Check if the server is running and responsive')
-async def health_check(ctx: Context) -> Dict[str, Any]:
+async def health_check(
+    ctx: Context,
+    database_id: Annotated[
+        Optional[str], Field(description='Database identifier (optional, uses default if not specified)')
+    ] = None,
+) -> Dict[str, Any]:
     """Check if the server is running and responsive."""
     try:
-        # Test database connectivity
+        # Test database connectivity using multi-database manager
         connection_test = False
         connection_type = "Unknown"
+        database_info = "Unknown"
+        
         try:
-            db_connection = UnifiedDBConnectionSingleton.get().db_connection
-            connection_type = db_connection.connection_type
-            test_result = await run_query("SELECT 1 as health_check", ctx)
+            db_manager = get_multi_database_manager()
+            config = db_manager.get_database_config(database_id)
+            connection_type = config.connection_type
+            database_info = f"{config.database} ({config.database_id or 'default'})"
+            
+            test_result = await run_query("SELECT 1 as health_check", ctx, database_id=database_id)
             connection_test = len(test_result) > 0 and 'error' not in test_result[0]
         except Exception as e:
             logger.warning(f"Health check database test failed: {str(e)}")
@@ -555,7 +577,8 @@ async def health_check(ctx: Context) -> Dict[str, Any]:
             "status": "healthy" if connection_test else "unhealthy",
             "timestamp": "2025-06-19T15:00:00Z",
             "database_connection": connection_test,
-            "server_version": "unified-v1.0",
+            "database_info": database_info,
+            "server_version": "multi-db-v1.0",
             "tools_available": 10,
             "database_type": database_type,
             "connection_type": connection_type
@@ -818,6 +841,66 @@ async def recommend_indexes(
         return json.dumps({"status": "error", "error": str(e)})
 
 
+@mcp.tool(name='list_databases', description='List all configured databases')
+async def list_databases(ctx: Context) -> List[Dict[str, Any]]:
+    """List all configured databases."""
+    try:
+        db_manager = get_multi_database_manager()
+        databases = db_manager.list_databases()
+        
+        logger.info(f"Listed {len(databases)} configured databases")
+        return databases
+        
+    except Exception as e:
+        logger.error(f"Failed to list databases: {str(e)}")
+        await ctx.error(f"Failed to list databases: {str(e)}")
+        return []
+
+
+@mcp.tool(name='get_database_info', description='Get information about a specific database')
+async def get_database_info(
+    database_id: Annotated[str, Field(description='Database identifier')],
+    ctx: Context
+) -> Dict[str, Any]:
+    """Get information about a specific database."""
+    try:
+        db_manager = get_multi_database_manager()
+        config = db_manager.get_database_config(database_id)
+        
+        # Test connection health
+        connection_healthy = False
+        try:
+            test_result = await run_query("SELECT 1 as test", ctx, database_id=database_id)
+            connection_healthy = len(test_result) > 0 and 'error' not in test_result[0]
+        except Exception as e:
+            logger.warning(f"Database health check failed for {database_id}: {str(e)}")
+        
+        database_info = {
+            "id": database_id,
+            "database": config.database,
+            "connection_type": config.connection_type,
+            "readonly": config.readonly,
+            "region": config.region,
+            "is_default": database_id == db_manager.get_default_database_id(),
+            "connection_healthy": connection_healthy
+        }
+        
+        # Add connection-specific info
+        if config.connection_type == "rds_data_api":
+            database_info["resource_arn"] = config.resource_arn
+        elif config.connection_type == "direct_postgres":
+            database_info["hostname"] = config.hostname
+            database_info["port"] = config.port
+        
+        logger.info(f"Retrieved database info for {database_id}")
+        return database_info
+        
+    except Exception as e:
+        logger.error(f"Failed to get database info for {database_id}: {str(e)}")
+        await ctx.error(f"Failed to get database info: {str(e)}")
+        return {"error": str(e)}
+
+
 def main():
     """Main entry point for the MCP server application."""
     parser = argparse.ArgumentParser(
@@ -858,7 +941,19 @@ def main():
     logger.info(f'PostgreSQL MCP Server starting with {connection_display} connection to {connection_target}, DATABASE:{args.database}, READONLY:{args.readonly}')
 
     try:
-        # Initialize unified connection
+        # Initialize multi-database manager in single-database mode for backward compatibility
+        initialize_single_database_mode(
+            connection_type=connection_type,
+            resource_arn=args.resource_arn,
+            hostname=args.hostname,
+            port=args.port,
+            secret_arn=args.secret_arn,
+            database=args.database,
+            region=args.region,
+            readonly=args.readonly == 'true'
+        )
+        
+        # Also initialize the legacy singleton for any remaining legacy code
         UnifiedDBConnectionSingleton.initialize(
             connection_type=connection_type,
             resource_arn=args.resource_arn,
@@ -882,7 +977,9 @@ def main():
     ctx = DummyCtx()
     
     try:
-        db_connection = UnifiedDBConnectionSingleton.get().db_connection
+        # Get multi-database manager for connection testing
+        db_manager = get_multi_database_manager()
+        db_connection = db_manager.get_connection()  # Uses default database
         
         if connection_type == "rds_data_api":
             # For RDS Data API, test with actual query (fast)
