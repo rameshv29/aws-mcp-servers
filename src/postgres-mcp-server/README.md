@@ -234,8 +234,8 @@ docker run -p 8000:8000 \
 #  INSECURE - Never hardcode credentials in Docker commands
 #  This exposes credentials in process lists and Docker history
 docker run -p 8000:8000 \
-  -e AWS_ACCESS_KEY_ID=AKIA... \
-  -e AWS_SECRET_ACCESS_KEY=... \
+  -e AWS_ACCESS_KEY_ID=AKIA... \  # pragma: allowlist secret
+  -e AWS_SECRET_ACCESS_KEY=... \  # pragma: allowlist secret
   postgres-mcp-server
 ```
 
@@ -287,9 +287,9 @@ Configure the PostgreSQL MCP Server with Amazon Q Developer CLI by adding to you
 ```json
 {
   "env": {
-    "AWS_ACCESS_KEY_ID": "AKIA...",
-    "AWS_SECRET_ACCESS_KEY": "...",
-    "AWS_SESSION_TOKEN": "..."
+    "AWS_ACCESS_KEY_ID": "AKIA...",  # pragma: allowlist secret
+    "AWS_SECRET_ACCESS_KEY": "...",  # pragma: allowlist secret
+    "AWS_SESSION_TOKEN": "..."  # pragma: allowlist secret
   }
 }
 ```
@@ -322,7 +322,7 @@ This server uses AWS RDS Data API and requires proper AWS credentials. **Never h
 1. **Hardcoded Credentials in Docker**
    ```bash
    #  NEVER DO THIS
-   docker run -e AWS_ACCESS_KEY_ID=AKIA... -e AWS_SECRET_ACCESS_KEY=...
+   docker run -e AWS_ACCESS_KEY_ID=AKIA... -e AWS_SECRET_ACCESS_KEY=...  # pragma: allowlist secret
    ```
 
 2. **Credentials in Configuration Files**
@@ -330,8 +330,8 @@ This server uses AWS RDS Data API and requires proper AWS credentials. **Never h
    //  NEVER DO THIS
    {
      "env": {
-       "AWS_ACCESS_KEY_ID": "AKIA...",
-       "AWS_SECRET_ACCESS_KEY": "..."
+       "AWS_ACCESS_KEY_ID": "AKIA...",  # pragma: allowlist secret
+       "AWS_SECRET_ACCESS_KEY": "..."  # pragma: allowlist secret
      }
    }
    ```
@@ -339,8 +339,8 @@ This server uses AWS RDS Data API and requires proper AWS credentials. **Never h
 3. **Credentials in Environment Variables (Production)**
    ```bash
    #  AVOID IN PRODUCTION
-   export AWS_ACCESS_KEY_ID=AKIA...
-   export AWS_SECRET_ACCESS_KEY=...
+   export AWS_ACCESS_KEY_ID=AKIA...  # pragma: allowlist secret
+   export AWS_SECRET_ACCESS_KEY=...  # pragma: allowlist secret
    ```
 
 ### Database Security
