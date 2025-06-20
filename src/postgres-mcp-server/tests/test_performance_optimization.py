@@ -20,7 +20,7 @@ def test_startup_performance():
     results = {}
     
     # Test RDS Data API startup time
-    print("\n🧪 Testing RDS Data API Startup Performance")
+    print("\n Testing RDS Data API Startup Performance")
     print("-" * 50)
     
     cmd_rds = [
