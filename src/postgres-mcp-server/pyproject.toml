@@ -1,7 +1,7 @@
 [project]
-name = "awslabs.postgresql-mcp-server"
-version = "1.0.1"
-description = "An AWS Labs Model Context Protocol (MCP) server for PostgreSQL"
+name = "awslabs.postgres-mcp-server"
+version = "1.0.2"
+description = "An AWS Labs Model Context Protocol (MCP) server for postgres"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -38,7 +38,7 @@ repository = "https://github.com/awslabs/mcp.git"
 changelog = "https://github.com/awslabs/mcp/blob/main/src/postgresql-mcp-server/CHANGELOG.md"
 
 [project.scripts]
-"awslabs.postgresql-mcp-server" = "awslabs.postgresql_mcp_server.server:main"
+"awslabs.postgres-mcp-server" = "awslabs.postgres_mcp_server.server:main"
 
 [dependency-groups]
 dev = [
@@ -107,7 +107,7 @@ version = "0.0.0"
 tag_format = "v$version"
 version_files = [
     "pyproject.toml:version",
-    "awslabs/postgresql_mcp_server/__init__.py:__version__"
+    "awslabs/postgres_mcp_server/__init__.py:__version__"
 ]
 update_changelog_on_bump = true
 
