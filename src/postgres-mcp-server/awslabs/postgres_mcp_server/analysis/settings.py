@@ -25,8 +25,7 @@ async def show_postgresql_settings(
     connection: Union[RDSDataAPIConnector, PostgreSQLConnector],
     pattern: Optional[str] = None
 ) -> Dict[str, Any]:
-    """
-    Show PostgreSQL configuration settings with optional filtering.
+    """Show PostgreSQL configuration settings with optional filtering.
     
     Args:
         connection: Database connection instance
