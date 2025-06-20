@@ -130,7 +130,7 @@ python -m awslabs.postgres_mcp_server.server \
   --resource_arn "[your data]" \
   --secret_arn "[your data]" \  
   --database "[your database name]" \
-  --region "us-west-2" \
+  --region "[your data]" \
   --readonly "true"
 ```
 
@@ -163,7 +163,7 @@ python -m awslabs.postgres_mcp_server.server \
   --resource_arn "[your data]" \
   --secret_arn "[your data]" \  
   --database "[your database name]" \
-  --region "us-west-2" \
+  --region "[your data]" \
   --readonly "true"
 ```
 
@@ -260,7 +260,7 @@ Configure the PostgreSQL MCP Server with Amazon Q Developer CLI by adding to you
       "cwd": "/path/to/postgres-mcp-server",
       "env": {
         "AWS_PROFILE": "your-profile-name",
-        "AWS_REGION": "us-west-2",
+        "AWS_REGION": "[your data]",
         "PYTHONPATH": "/path/to/postgres-mcp-server"
       },
       "timeout": 30000,
@@ -278,7 +278,7 @@ Configure the PostgreSQL MCP Server with Amazon Q Developer CLI by adding to you
 {
   "env": {
     "AWS_PROFILE": "your-profile-name",
-    "AWS_REGION": "us-west-2"
+    "AWS_REGION": "your data"
   }
 }
 ```
