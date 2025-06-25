@@ -20,19 +20,17 @@ import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 from awslabs.postgres_mcp_server.connection.pool_manager import ConnectionPoolManager, connection_pool_manager
-from awslabs.postgres_mcp_server.connection.enhanced_singleton import DBConnectionSingleton, DBConnectionWrapper
 from awslabs.postgres_mcp_server.connection.rds_connector import RDSDataAPIConnector
-from awslabs.postgres_mcp_server.connection.postgres_connector import PostgreSQLConnector
+from awslabs.postgres_mcp_server.connection.postgres_driver import PostgresDriver
 from awslabs.postgres_mcp_server.connection.connection_factory import ConnectionFactory
 
 
 # Mock connector classes for testing
-class MockRDSConnector(AsyncMock):
+class MockRDSConnector:
     """Mock RDS Data API connector for testing."""
     
     def __init__(self, *args, **kwargs):
         """Initialize the mock RDS connector with default values."""
-        super().__init__(*args, **kwargs)
         self.resource_arn = kwargs.get('resource_arn', 'mock_resource_arn')  
         self.secret_arn = kwargs.get('secret_arn', 'mock_secret_arn')  # pragma: allowlist secret
         self.database = kwargs.get('database', 'mock_database')
@@ -62,12 +60,11 @@ class MockRDSConnector(AsyncMock):
         return [{"result": "mock_result"}]
 
 
-class MockPostgreSQLConnector(AsyncMock):
+class MockPostgresDriver:
     """Mock direct PostgreSQL connector for testing."""
     
     def __init__(self, *args, **kwargs):
         """Initialize the mock PostgreSQL connector with default values."""
-        super().__init__(*args, **kwargs)
         self.hostname = kwargs.get('hostname', 'mock_hostname')
         self.port = kwargs.get('port', 5432)
         self.database = kwargs.get('database', 'mock_database')
@@ -149,6 +146,14 @@ def mock_connection_factory():
         
         # Set up the create_pool_key method
         mock_factory.create_pool_key.return_value = "test_pool_key"
+        
+        # Set up the create_connection method to return a new pre-connected mock each time
+        def create_connection_side_effect(*args, **kwargs):
+            mock_rds = MockRDSConnector()
+            mock_rds.connected = True  
+            return mock_rds
+        
+        mock_factory.create_connection.side_effect = create_connection_side_effect
         
         yield mock_factory
 
@@ -337,7 +342,7 @@ class TestConnectionPoolManager:
     
     @pytest.mark.asyncio
     @patch('awslabs.postgres_mcp_server.connection.pool_manager.RDSDataAPIConnector', MockRDSConnector)
-    @patch('awslabs.postgres_mcp_server.connection.pool_manager.PostgreSQLConnector', MockPostgreSQLConnector)
+    @patch('awslabs.postgres_mcp_server.connection.pool_manager.PostgresDriver', MockPostgresDriver)
     async def test_different_connection_types(self, pool_manager):
         """Test creating different types of connections."""
         # Mock the connection factory methods directly
@@ -346,6 +351,11 @@ class TestConnectionPoolManager:
             mock_factory.determine_connection_type.return_value = "rds_data_api"
             mock_factory.validate_connection_params.return_value = (True, "")
             mock_factory.create_pool_key.return_value = "rds_pool_key"
+            
+            # Create a pre-connected RDS mock
+            mock_rds = MockRDSConnector()
+            mock_rds.connected = True
+            mock_factory.create_connection.return_value = mock_rds
             
             rds_connection = await pool_manager.get_connection(
                 secret_arn='test_secret', # pragma: allowlist secret
@@ -360,13 +370,18 @@ class TestConnectionPoolManager:
             mock_factory.validate_connection_params.return_value = (True, "")
             mock_factory.create_pool_key.return_value = "postgres_pool_key"
             
+            # Create a pre-connected PostgreSQL mock
+            mock_postgres = MockPostgresDriver()
+            mock_postgres.connected = True
+            mock_factory.create_connection.return_value = mock_postgres
+            
             postgres_connection = await pool_manager.get_connection(
                 secret_arn='test_secret', # pragma: allowlist secret
                 hostname='localhost',
                 database='test_db'
             )
             
-            assert isinstance(postgres_connection, MockPostgreSQLConnector)
+            assert isinstance(postgres_connection, MockPostgresDriver)
             
             # Check that we have two different pools
             assert len(pool_manager._pools) == 2
@@ -467,163 +482,6 @@ class TestConnectionPoolConcurrency:
         # Check final pool state
         assert len(pool_manager._pools["test_pool_key"]["connections"]) <= pool_manager.max_size
         assert len(pool_manager._pools["test_pool_key"]["in_use"]) == 0  # All returned
-
-
-# Tests for the enhanced singleton
-class TestEnhancedDBConnectionSingleton:
-    """Tests for the enhanced DBConnectionSingleton with connection pooling."""
-    
-    def setup_method(self):
-        """Set up the test environment."""
-        # Reset the singleton before each test
-        DBConnectionSingleton._instance = None
-    
-    @pytest.mark.asyncio
-    @patch('awslabs.postgres_mcp_server.connection.enhanced_singleton.connection_pool_manager')
-    async def test_initialize_with_rds(self, mock_pool_manager):
-        """Test initializing the singleton with RDS parameters."""
-        # Initialize the singleton
-        DBConnectionSingleton.initialize(
-            resource_arn='test_resource', 
-            secret_arn='test_secret',  # pragma: allowlist secret
-            database='test_db',
-            region='us-west-2',
-            readonly=True
-        )
-        
-        # Check that the singleton was created
-        assert DBConnectionSingleton._instance is not None
-        
-        # Check the singleton properties
-        instance = DBConnectionSingleton.get()
-        assert instance.resource_arn == 'test_resource'
-        assert instance.secret_arn == 'test_secret' # pragma: allowlist secret
-        assert instance.database == 'test_db'
-        assert instance.region == 'us-west-2'
-        assert instance.readonly is True
-        assert instance.hostname is None
-    
-    @pytest.mark.asyncio
-    @patch('awslabs.postgres_mcp_server.connection.enhanced_singleton.connection_pool_manager')
-    async def test_initialize_with_postgres(self, mock_pool_manager):
-        """Test initializing the singleton with direct PostgreSQL parameters."""
-        # Initialize the singleton
-        DBConnectionSingleton.initialize(
-            hostname='localhost',
-            port=5432,
-            secret_arn='test_secret',  # pragma: allowlist secret
-            database='test_db',
-            region='us-west-2',
-            readonly=True
-        )
-        
-        # Check that the singleton was created
-        assert DBConnectionSingleton._instance is not None
-        
-        # Check the singleton properties
-        instance = DBConnectionSingleton.get()
-        assert instance.resource_arn is None
-        assert instance.secret_arn == 'test_secret' # pragma: allowlist secret
-        assert instance.database == 'test_db'
-        assert instance.region == 'us-west-2'
-        assert instance.readonly is True
-        assert instance.hostname == 'localhost'
-        assert instance.port == 5432
-    
-    @pytest.mark.asyncio
-    @patch('awslabs.postgres_mcp_server.connection.enhanced_singleton.connection_pool_manager')
-    async def test_get_connection(self, mock_pool_manager):
-        """Test getting a connection from the singleton."""
-        # Mock the pool manager's get_connection method
-        mock_connection = AsyncMock()
-        # Make get_connection awaitable
-        mock_pool_manager.get_connection = AsyncMock(return_value=mock_connection)
-        
-        # Initialize the singleton
-        DBConnectionSingleton.initialize(
-            resource_arn='test_resource',
-            secret_arn='test_secret', # pragma: allowlist secret
-            database='test_db',
-            region='us-west-2',
-            readonly=True
-        )
-        
-        # Get a connection
-        instance = DBConnectionSingleton.get()
-        connection = await instance.get_connection()
-        
-        # Check that we got the mock connection
-        assert connection is mock_connection
-        
-        # Check that the pool manager was called with the right parameters
-        mock_pool_manager.get_connection.assert_called_once_with(
-            secret_arn='test_secret', # pragma: allowlist secret
-            region_name='us-west-2',
-            resource_arn='test_resource',
-            database='test_db',
-            hostname=None,
-            port=5432,
-            readonly=True
-        )
-    
-    @pytest.mark.asyncio
-    @patch('awslabs.postgres_mcp_server.connection.enhanced_singleton.connection_pool_manager')
-    async def test_return_connection(self, mock_pool_manager):
-        """Test returning a connection to the pool."""
-        # Mock the pool manager's get_connection method
-        mock_connection = AsyncMock()
-        # Make get_connection awaitable
-        mock_pool_manager.get_connection = AsyncMock(return_value=mock_connection)
-        # Make return_connection awaitable
-        mock_pool_manager.return_connection = AsyncMock()
-        
-        # Initialize the singleton
-        DBConnectionSingleton.initialize(
-            resource_arn='test_resource',
-            secret_arn='test_secret', # pragma: allowlist secret
-            database='test_db',
-            region='us-west-2',
-            readonly=True
-        )
-        
-        # Get a connection
-        instance = DBConnectionSingleton.get()
-        await instance.get_connection()
-        
-        # Return it
-        await instance.return_connection()
-        
-        # Check that the pool manager was called with the right parameters
-        mock_pool_manager.return_connection.assert_called_once_with(mock_connection)
-        
-        # Check that the connection was cleared
-        assert instance._connection is None
-    
-    @pytest.mark.asyncio
-    @patch('awslabs.postgres_mcp_server.connection.enhanced_singleton.connection_pool_manager')
-    async def test_connection_wrapper(self, mock_pool_manager):
-        """Test the connection wrapper for backward compatibility."""
-        # Initialize the singleton
-        DBConnectionSingleton.initialize(
-            resource_arn='test_resource',
-            secret_arn='test_secret', # pragma: allowlist secret
-            database='test_db',
-            region='us-west-2',
-            readonly=True
-        )
-        
-        # Get the wrapper
-        instance = DBConnectionSingleton.get()
-        wrapper = instance.db_connection
-        
-        # Check wrapper properties
-        assert wrapper.cluster_arn == 'test_resource'  
-        assert wrapper.secret_arn == 'test_secret'  # pragma: allowlist secret
-        assert wrapper.database == 'test_db'
-        assert wrapper.readonly_query is True
-        
-        # The data_client property should return None (it's a placeholder)
-        assert wrapper.data_client is None
 
 
 # Tests for resource management and leak detection
@@ -761,23 +619,33 @@ class TestConnectionPoolErrorHandling:
         assert "Invalid parameters" in str(excinfo.value)
     
     @pytest.mark.asyncio
-    @patch('awslabs.postgres_mcp_server.connection.pool_manager.RDSDataAPIConnector')
-    async def test_connection_failure(self, mock_connector, pool_manager, mock_connection_factory):
+    async def test_connection_failure(self, pool_manager):
         """Test handling of connection failures."""
-        # Mock connection failure
-        mock_instance = AsyncMock()
-        mock_instance.connect.return_value = False
-        mock_connector.return_value = mock_instance
-        
-        # Try to get a connection
-        with pytest.raises(Exception) as excinfo:
-            await pool_manager.get_connection(
-                secret_arn='test_secret', # pragma: allowlist secret
-                resource_arn='test_resource',
-                database='test_db'
-            )
-        
-        assert "Failed to create connection" in str(excinfo.value)
+        # Override the mock_connection_factory fixture for this test
+        with patch('awslabs.postgres_mcp_server.connection.pool_manager.ConnectionFactory') as mock_factory:
+            # Set up the determine_connection_type method
+            mock_factory.determine_connection_type.return_value = "rds_data_api"
+            
+            # Set up the validate_connection_params method
+            mock_factory.validate_connection_params.return_value = (True, "")
+            
+            # Set up the create_pool_key method
+            mock_factory.create_pool_key.return_value = "test_pool_key"
+            
+            # Create a mock that will fail to connect
+            mock_conn = MockRDSConnector()
+            mock_conn.connect = AsyncMock(return_value=False)
+            mock_factory.create_connection.return_value = mock_conn
+            
+            # Try to get a connection
+            with pytest.raises(Exception) as excinfo:
+                await pool_manager.get_connection(
+                    secret_arn='test_secret', # pragma: allowlist secret
+                    resource_arn='test_resource',
+                    database='test_db'
+                )
+            
+            assert "Failed to create connection" in str(excinfo.value)
     
     @pytest.mark.asyncio
     @patch('awslabs.postgres_mcp_server.connection.pool_manager.RDSDataAPIConnector', MockRDSConnector)
@@ -788,6 +656,9 @@ class TestConnectionPoolErrorHandling:
             mock_factory.determine_connection_type.return_value = "unknown_type"
             mock_factory.validate_connection_params.return_value = (True, "")
             mock_factory.create_pool_key.return_value = "test_pool_key"
+            
+            # Mock create_connection to raise an error for unknown type
+            mock_factory.create_connection.side_effect = ValueError("Unknown connection type")
             
             # Try to get a connection
             with pytest.raises(ValueError) as excinfo:

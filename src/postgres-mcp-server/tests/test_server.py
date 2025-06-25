@@ -16,13 +16,12 @@
 
 import pytest
 from awslabs.postgres_mcp_server.server import (
-    DBConnection,
-    DBConnectionSingleton,
     extract_cell,
     get_table_schema,
     parse_execute_response,
     run_query,
 )
+from awslabs.postgres_mcp_server.connection import DBConnector, ConnectionFactory
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
@@ -98,87 +97,175 @@ class TestParseExecuteResponse:
         assert parse_execute_response(response) == expected
 
 
-class TestDBConnection:
-    """Tests for the DBConnection class."""
+class TestDBConnector:
+    """Tests for the DBConnector implementations."""
 
-    def test_init(self):
-        """Test initializing a DBConnection."""
-        connection = DBConnection(
-            'cluster_arn',
-            'secret_arn', # pragma: allowlist secret
-            'database',
-            'region',
-            True,
-            is_test=True,
+    def test_rds_connector_init(self):
+        """Test initializing an RDSDataAPIConnector."""
+        from awslabs.postgres_mcp_server.connection.rds_connector import RDSDataAPIConnector
+        
+        connector = RDSDataAPIConnector(
+            resource_arn='cluster_arn',
+            secret_arn='secret_arn', # pragma: allowlist secret
+            database='database',
+            region_name='region',
+            readonly=True
         )
-        assert connection.cluster_arn == 'cluster_arn'
-        assert connection.secret_arn == 'secret_arn' # pragma: allowlist secret
-        assert connection.database == 'database'
-        assert connection.readonly is True
+        assert connector.resource_arn == 'cluster_arn'
+        assert connector.secret_arn == 'secret_arn' # pragma: allowlist secret
+        assert connector.database == 'database'
+        assert connector.readonly is True
+        assert connector.connection_info['type'] == 'rds_data_api'
+
+    def test_postgres_driver_init(self):
+        """Test initializing a PostgresDriver."""
+        from awslabs.postgres_mcp_server.connection.postgres_driver import PostgresDriver
+        
+        connector = PostgresDriver(
+            hostname='hostname',
+            port=5432,
+            database='database',
+            secret_arn='secret_arn', # pragma: allowlist secret
+            region_name='region',
+            readonly=True
+        )
+        assert connector.hostname == 'hostname'
+        assert connector.port == 5432
+        assert connector.database == 'database'
+        assert connector.secret_arn == 'secret_arn' # pragma: allowlist secret
+        assert connector.readonly is True
+        assert connector.connection_info['type'] == 'psycopg_driver'
 
     def test_readonly_query(self):
         """Test the readonly_query property."""
-        connection = DBConnection(
-            'cluster_arn',
-            'secret_arn', # pragma: allowlist secret
-            'database',
-            'region',
-            True,
-            is_test=True,
+        # Create a mock DBConnector
+        connector = MagicMock(spec=DBConnector)
+        connector.readonly = True
+        
+        # Test the readonly_query property
+        assert DBConnector.readonly_query.__get__(connector) is True
+
+
+class TestConnectionFactory:
+    """Tests for the ConnectionFactory class."""
+
+    def test_determine_connection_type_rds(self):
+        """Test determining connection type with resource_arn."""
+        connection_type = ConnectionFactory.determine_connection_type(
+            resource_arn='cluster_arn',
+            hostname=None
         )
-        assert connection.readonly_query is True
+        assert connection_type == 'rds_data_api'
 
-
-class TestDBConnectionSingleton:
-    """Tests for the DBConnectionSingleton class."""
-
-    def setup_method(self):
-        """Set up the test environment."""
-        # Reset the singleton before each test
-        DBConnectionSingleton._instance = None
-
-    def test_initialize(self):
-        """Test initializing the singleton."""
-        DBConnectionSingleton.initialize(
-            'resource_arn',
-            'secret_arn', # pragma: allowlist secret
-            'database',
-            'region',
-            True,
-            is_test=True,
+    def test_determine_connection_type_postgres(self):
+        """Test determining connection type with hostname."""
+        connection_type = ConnectionFactory.determine_connection_type(
+            resource_arn=None,
+            hostname='hostname'
         )
-        assert DBConnectionSingleton._instance is not None
-        assert DBConnectionSingleton._instance._db_connection.cluster_arn == 'resource_arn'
+        assert connection_type == 'psycopg_driver'
 
-    def test_get_without_initialize(self):
-        """Test getting the singleton without initializing it."""
-        with pytest.raises(RuntimeError):
-            DBConnectionSingleton.get()
-
-    def test_get_after_initialize(self):
-        """Test getting the singleton after initializing it."""
-        DBConnectionSingleton.initialize(
-            'resource_arn',
-            'secret_arn', # pragma: allowlist secret
-            'database',
-            'region',
-            True,
-            is_test=True,
-        )
-        instance = DBConnectionSingleton.get()
-        assert instance._db_connection.cluster_arn == 'resource_arn'
-
-    def test_initialize_missing_params(self):
-        """Test initializing with missing parameters."""
+    def test_determine_connection_type_missing_params(self):
+        """Test determining connection type with missing parameters."""
         with pytest.raises(ValueError):
-            DBConnectionSingleton.initialize(
-                None,
-                'secret_arn', # pragma: allowlist secret
-                'database',
-                'region',
-                True,
-                is_test=True,
+            ConnectionFactory.determine_connection_type(
+                resource_arn=None,
+                hostname=None
             )
+
+    def test_create_connection_rds(self):
+        """Test creating an RDS Data API connection."""
+        from awslabs.postgres_mcp_server.connection.rds_connector import RDSDataAPIConnector
+        
+        with patch('awslabs.postgres_mcp_server.connection.connection_factory.RDSDataAPIConnector') as mock_connector:
+            mock_connector.return_value = MagicMock(spec=RDSDataAPIConnector)
+            
+            ConnectionFactory.create_connection(
+                resource_arn='cluster_arn',
+                secret_arn='secret_arn', # pragma: allowlist secret
+                database='database',
+                region='region',
+                readonly=True
+            )
+            
+            mock_connector.assert_called_once_with(
+                resource_arn='cluster_arn',
+                secret_arn='secret_arn', # pragma: allowlist secret
+                database='database',
+                region_name='region',
+                readonly=True
+            )
+
+    def test_create_connection_postgres(self):
+        """Test creating a PostgreSQL connection."""
+        from awslabs.postgres_mcp_server.connection.postgres_driver import PostgresDriver
+        
+        with patch('awslabs.postgres_mcp_server.connection.connection_factory.PostgresDriver') as mock_driver:
+            mock_driver.return_value = MagicMock(spec=PostgresDriver)
+            
+            ConnectionFactory.create_connection(
+                hostname='hostname',
+                port=5432,
+                secret_arn='secret_arn', # pragma: allowlist secret
+                database='database',
+                region='region',
+                readonly=True
+            )
+            
+            mock_driver.assert_called_once_with(
+                hostname='hostname',
+                port=5432,
+                database='database',
+                secret_arn='secret_arn', # pragma: allowlist secret
+                region_name='region',
+                readonly=True
+            )
+
+    def test_validate_connection_params_rds_valid(self):
+        """Test validating RDS Data API connection parameters."""
+        is_valid, _ = ConnectionFactory.validate_connection_params(
+            connection_type='rds_data_api',
+            resource_arn='cluster_arn',
+            secret_arn='secret_arn', # pragma: allowlist secret
+            database='database',
+            region_name='region'
+        )
+        assert is_valid is True
+
+    def test_validate_connection_params_rds_invalid(self):
+        """Test validating RDS Data API connection parameters with missing parameters."""
+        is_valid, error_msg = ConnectionFactory.validate_connection_params(
+            connection_type='rds_data_api',
+            resource_arn=None,
+            secret_arn='secret_arn', # pragma: allowlist secret
+            database='database',
+            region_name='region'
+        )
+        assert is_valid is False
+        assert 'resource_arn' in error_msg
+
+    def test_validate_connection_params_postgres_valid(self):
+        """Test validating PostgreSQL connection parameters."""
+        is_valid, _ = ConnectionFactory.validate_connection_params(
+            connection_type='psycopg_driver',
+            hostname='hostname',
+            secret_arn='secret_arn', # pragma: allowlist secret
+            database='database',
+            region_name='region'
+        )
+        assert is_valid is True
+
+    def test_validate_connection_params_postgres_invalid(self):
+        """Test validating PostgreSQL connection parameters with missing parameters."""
+        is_valid, error_msg = ConnectionFactory.validate_connection_params(
+            connection_type='psycopg_driver',
+            hostname=None,
+            secret_arn='secret_arn', # pragma: allowlist secret
+            database='database',
+            region_name='region'
+        )
+        assert is_valid is False
+        assert 'hostname' in error_msg
 
 
 class TestRunQuery:
@@ -191,35 +278,29 @@ class TestRunQuery:
         ctx = AsyncMock()
 
         # Mock DB connection
-        db_connection = MagicMock()
-        db_connection.readonly_query = False
-        db_connection.cluster_arn = 'cluster_arn'
-        db_connection.secret_arn = 'secret_arn' # pragma: allowlist secret
-        db_connection.database = 'database'
-
-        # Mock response from execute_statement
+        mock_db_connection = MagicMock(spec=DBConnector)
+        mock_db_connection.readonly_query = False
+        mock_db_connection.is_connected.return_value = True
+        
+        # Mock response from execute_query
         mock_response = {
             'columnMetadata': [{'name': 'id'}],
             'records': [
                 [{'longValue': 1}],
             ],
         }
-        db_connection.data_client.execute_statement.return_value = mock_response
+        mock_db_connection.execute_query.return_value = mock_response
 
-        # Run the query
-        result = await run_query('SELECT 1', ctx, db_connection)
+        # Patch the global db_connection
+        with patch('awslabs.postgres_mcp_server.server.db_connection', mock_db_connection):
+            # Run the query
+            result = await run_query('SELECT 1', ctx)
 
-        # Check the result
-        assert result == [{'id': 1}]
+            # Check the result
+            assert result == [{'id': 1}]
 
-        # Check that execute_statement was called with the correct parameters
-        db_connection.data_client.execute_statement.assert_called_once_with(
-            resourceArn='cluster_arn',
-            secretArn='secret_arn', # pragma: allowlist secret
-            database='database',
-            sql='SELECT 1',
-            includeResultMetadata=True,
-        )
+            # Check that execute_query was called with the correct parameters
+            mock_db_connection.execute_query.assert_called_once_with('SELECT 1', None)
 
     @pytest.mark.asyncio
     async def test_run_query_readonly_violation(self):
@@ -228,24 +309,26 @@ class TestRunQuery:
         ctx = AsyncMock()
 
         # Mock DB connection
-        db_connection = MagicMock()
-        db_connection.readonly_query = True
+        mock_db_connection = MagicMock(spec=DBConnector)
+        mock_db_connection.readonly_query = True
 
-        # Run the query
-        result = await run_query('UPDATE table SET column = value', ctx, db_connection)
+        # Patch the global db_connection
+        with patch('awslabs.postgres_mcp_server.server.db_connection', mock_db_connection):
+            # Run the query
+            result = await run_query('UPDATE table SET column = value', ctx)
 
-        # Check the result
-        assert result == [
-            {
-                'error': 'Your MCP tool only allows readonly query. If you want to write, change the MCP configuration per README.md'
-            }
-        ]
+            # Check the result
+            assert result == [
+                {
+                    'error': 'Your MCP tool only allows readonly query. If you want to write, change the MCP configuration per README.md'
+                }
+            ]
 
-        # Check that execute_statement was not called
-        db_connection.data_client.execute_statement.assert_not_called()
+            # Check that execute_query was not called
+            mock_db_connection.execute_query.assert_not_called()
 
-        # Check that error was called
-        ctx.error.assert_called_once()
+            # Check that error was called
+            ctx.error.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_run_query_injection_risk(self):
@@ -254,24 +337,25 @@ class TestRunQuery:
         ctx = AsyncMock()
 
         # Mock DB connection
-        db_connection = MagicMock()
-        db_connection.readonly_query = False
+        mock_db_connection = MagicMock(spec=DBConnector)
+        mock_db_connection.readonly_query = False
 
-        # Run the query with a risky pattern
-        result = await run_query(
-            "SELECT * FROM users WHERE username = 'admin'; DROP TABLE users;--'",
-            ctx,
-            db_connection,
-        )
+        # Patch the global db_connection
+        with patch('awslabs.postgres_mcp_server.server.db_connection', mock_db_connection):
+            # Run the query with a risky pattern
+            result = await run_query(
+                "SELECT * FROM users WHERE username = 'admin'; DROP TABLE users;--'",
+                ctx,
+            )
 
-        # Check the result
-        assert result == [{'error': 'Your query contains risky injection patterns'}]
+            # Check the result
+            assert result == [{'error': 'Your query contains risky injection patterns'}]
 
-        # Check that execute_statement was not called
-        db_connection.data_client.execute_statement.assert_not_called()
+            # Check that execute_query was not called
+            mock_db_connection.execute_query.assert_not_called()
 
-        # Check that error was called
-        ctx.error.assert_called_once()
+            # Check that error was called
+            ctx.error.assert_called_once()
 
 
 class TestGetTableSchema:
@@ -298,7 +382,7 @@ class TestGetTableSchema:
         ]
 
         # Get the table schema
-        result = await get_table_schema('users', 'public', ctx)
+        result = await get_table_schema('users', ctx)
 
         # Check the result
         assert result == mock_run_query.return_value
@@ -306,10 +390,8 @@ class TestGetTableSchema:
         # Check that run_query was called with the correct parameters
         mock_run_query.assert_called_once()
         args, kwargs = mock_run_query.call_args
-        assert 'information_schema.columns' in kwargs['sql']
+        assert 'pg_attribute' in kwargs['sql']
         assert kwargs['ctx'] == ctx
-        assert len(kwargs['query_parameters']) == 2
+        assert len(kwargs['query_parameters']) == 1
         assert kwargs['query_parameters'][0]['name'] == 'table_name'
         assert kwargs['query_parameters'][0]['value']['stringValue'] == 'users'
-        assert kwargs['query_parameters'][1]['name'] == 'database_name'
-        assert kwargs['query_parameters'][1]['value']['stringValue'] == 'public'

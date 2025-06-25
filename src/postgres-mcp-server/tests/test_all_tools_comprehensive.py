@@ -454,3 +454,4 @@ if __name__ == "__main__":
     os.environ['AWS_REGION'] = 'us-west-2'
     
     asyncio.run(main())
+    
