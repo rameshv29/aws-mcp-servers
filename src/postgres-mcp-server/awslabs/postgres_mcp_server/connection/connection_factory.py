@@ -127,39 +127,6 @@ class ConnectionFactory:
             raise ValueError(f"Unknown connection type: {connection_type}")
 
     @staticmethod
-    def create_pool_key(
-        connection_type: str,
-        resource_arn: Optional[str] = None,
-        hostname: Optional[str] = None,
-        port: Optional[int] = None,
-        database: Optional[str] = None,
-        secret_arn: Optional[str] = None
-    ) -> str:
-        """
-        Create a unique pool key for connection pooling.
-
-        Args:
-            connection_type: Type of connection ('rds_data_api' or 'psycopg_driver')
-            resource_arn: ARN of the RDS cluster or instance
-            hostname: Database hostname
-            port: Database port
-            database: Database name
-            secret_arn: ARN of the secret containing credentials
-
-        Returns:
-            Unique pool key string
-        """
-        if connection_type == "rds_data_api":
-            secret_hash = hash(secret_arn) if secret_arn else 0
-            return f"rds://{resource_arn}/{database}#{secret_hash}"
-        elif connection_type == "psycopg_driver":
-            port = port or 5432
-            secret_hash = hash(secret_arn) if secret_arn else 0
-            return f"postgres://{hostname}:{port}/{database}#{secret_hash}"
-        else:
-            raise ValueError(f"Unknown connection type: {connection_type}")
-
-    @staticmethod
     def get_connection_config() -> Dict[str, Any]:
         """
         Get connection configuration from environment variables.

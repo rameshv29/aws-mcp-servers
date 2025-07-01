@@ -134,13 +134,6 @@ async def run_query(
             await ctx.error(str(error_details))
             return [{'error': QUERY_INJECTION_RISK_KEY}]
 
-        # Ensure connection is established
-        if not db_connection.is_connected():
-            logger.info("Establishing database connection for query execution...")
-            connected = await db_connection.connect()
-            if not connected:
-                raise Exception("Failed to establish database connection")
-
         logger.info(
             f'run_query: connection_type:{db_connection.connection_info["type"]}, '
             f'readonly:{db_connection.readonly_query}'
@@ -585,23 +578,14 @@ async def main() -> None:
         connection_type = db_connection.connection_info['type']
         connection_display = connection_type.replace('_', ' ').title()
 
-        if connection_type == "rds_data_api":
-            # For RDS Data API, test with actual query (fast)
-            response = await run_query('SELECT 1', ctx)
-            if (isinstance(response, list) and len(response) == 1 and
-                isinstance(response[0], dict) and 'error' in response[0]):
-                logger.error(
-                    f'Failed to validate {connection_display} database connection. Exiting.'
-                )
-                sys.exit(1)
-        else:
-            # For direct PostgreSQL, test connection establishment
-            connected = await db_connection.connect()
-            if not connected:
-                logger.error(
-                    f'Failed to establish {connection_display} database connection. Exiting.'
-                )
-                sys.exit(1)
+        # Test with a simple query
+        response = await run_query('SELECT 1', ctx)
+        if (isinstance(response, list) and len(response) == 1 and
+            isinstance(response[0], dict) and 'error' in response[0]):
+            logger.error(
+                f'Failed to validate {connection_display} database connection. Exiting.'
+            )
+            sys.exit(1)
 
         logger.success(
             f'{connection_display} database connection validated successfully'

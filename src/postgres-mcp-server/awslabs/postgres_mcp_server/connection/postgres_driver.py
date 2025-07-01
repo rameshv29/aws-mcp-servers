@@ -12,29 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Direct PostgreSQL driver implementation using psycopg."""
+"""Direct PostgreSQL driver implementation using psycopg3."""
 
 import asyncio
 import boto3
 import json
+import os
 from botocore.exceptions import ClientError
 from loguru import logger
 from typing import Any, Dict, List, Optional
 
 
 try:
-    import psycopg2  # type: ignore[import-untyped]
-    import psycopg2.extras  # type: ignore[import-untyped]
-    PSYCOPG2_AVAILABLE = True
+    import psycopg
+    from psycopg_pool import ConnectionPool
+    PSYCOPG_AVAILABLE = True
 except ImportError:
-    psycopg2 = None  # type: ignore[assignment]
-    PSYCOPG2_AVAILABLE = False
+    psycopg = None
+    ConnectionPool = None
+    PSYCOPG_AVAILABLE = False
 
 from .base_connection import DBConnector
 
 
 class PostgresDriver(DBConnector):
-    """Driver for direct PostgreSQL connections using psycopg."""
+    """Driver for direct PostgreSQL connections using psycopg3."""
 
     def __init__(
         self,
@@ -46,7 +48,7 @@ class PostgresDriver(DBConnector):
         readonly: bool = True
     ):
         """
-        Initialize PostgreSQL driver with lazy connection.
+        Initialize PostgreSQL driver with connection pool.
 
         Args:
             hostname: Database hostname
@@ -56,10 +58,10 @@ class PostgresDriver(DBConnector):
             port: Database port
             readonly: Whether connection is read-only
         """
-        if not PSYCOPG2_AVAILABLE:
+        if not PSYCOPG_AVAILABLE:
             raise ImportError(
-                "psycopg2-binary is required for direct PostgreSQL connections. "
-                "Install with: pip install psycopg2-binary or pip install .[postgres]"
+                "psycopg is required for direct PostgreSQL connections. "
+                "Install with: pip install psycopg[pool] or pip install .[postgres]"
             )
 
         self.hostname = hostname
@@ -68,24 +70,15 @@ class PostgresDriver(DBConnector):
         self.region_name = region_name
         self.port = port
         self.readonly = readonly
-        self._connection = None
         self._credentials = None
         self._credentials_cached = False
-        self._connection_validated = False
+        self._pool = None
 
-        logger.info(f"PostgreSQL driver initialized (lazy) for {hostname}:{port}/{database}")
-
-    def is_connected(self) -> bool:
-        """Check if the connection is active."""
-        if self._connection is None:
-            return False
-        try:
-            # Test connection with a simple query
-            with self._connection.cursor() as cursor:
-                cursor.execute("SELECT 1")
-            return True
-        except (psycopg2.Error, psycopg2.OperationalError) if psycopg2 else Exception:  # type: ignore[misc]
-            return False
+        # Configure pool size from environment variables
+        self._min_size = int(os.getenv('POSTGRES_POOL_MIN_SIZE', '4'))
+        self._max_size = int(os.getenv('POSTGRES_POOL_MAX_SIZE', '10'))
+        
+        logger.info(f"PostgreSQL driver initialized for {hostname}:{port}/{database}")
 
     async def _get_credentials(self) -> Dict[str, str]:
         """Get database credentials from AWS Secrets Manager with caching."""
@@ -104,79 +97,71 @@ class PostgresDriver(DBConnector):
                 raise
         return self._credentials or {}
 
+    async def _ensure_pool(self):
+        """Ensure the connection pool is initialized."""
+        if self._pool is not None:
+            return
+            
+        try:
+            logger.info(f"Initializing connection pool to PostgreSQL: {self.hostname}:{self.port}/{self.database}")
+            credentials = await self._get_credentials()
+            
+            # Build connection string
+            conninfo = (
+                f"host={self.hostname} "
+                f"port={self.port} "
+                f"dbname={self.database} "
+                f"user={credentials.get('username')} "
+                f"password={credentials.get('password')} "
+                f"application_name=postgres-mcp-server"
+            )
+            
+            # Create the connection pool
+            self._pool = ConnectionPool(
+                conninfo=conninfo,
+                min_size=self._min_size,
+                max_size=self._max_size,
+                timeout=30.0,
+                open=True  
+            )
+            
+            logger.success(f"Successfully initialized PostgreSQL pool: {self.hostname}:{self.port}/{self.database}")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize PostgreSQL pool: {str(e)}")
+            self._pool = None
+            raise
+
+    # Required by the abstract base class, but simplified
+    def is_connected(self) -> bool:
+        """Check if the connection pool is active."""
+        return self._pool is not None
+
+    # Required by the abstract base class, but simplified
     async def connect(self) -> bool:
         """
-        Establish connection to PostgreSQL database with optimized retry logic.
-
+        Establish connection pool to PostgreSQL database.
+        
         Returns:
             True if connection successful, False otherwise
         """
-        if self.is_connected():
-            return True
-
         try:
-            logger.info(f"Establishing connection to PostgreSQL: {self.hostname}:{self.port}/{self.database}")
-            credentials = await self._get_credentials()
-
-            connection_params = {
-                'host': self.hostname,
-                'port': self.port,
-                'database': self.database,
-                'user': credentials.get('username'),
-                'password': credentials.get('password'),
-                'connect_timeout': 10,  # Reduced from 30 to 10 seconds
-                'application_name': 'postgres-mcp-server'
-            }
-
-            if not PSYCOPG2_AVAILABLE or not psycopg2:
-                raise ImportError("psycopg2 is required for direct PostgreSQL connections")
-
-            self._connection = await asyncio.to_thread(
-                psycopg2.connect, **connection_params  # type: ignore[misc]
-            )
-
-            # Set autocommit for read-only operations
-            if self.readonly:
-                self._connection.autocommit = True
-
-            self._connection_validated = True
-            logger.success(f"Successfully connected to PostgreSQL: {self.hostname}:{self.port}/{self.database}")
+            await self._ensure_pool()
             return True
-
-        except Exception as e:
-            logger.error(f"Failed to connect to PostgreSQL: {str(e)}")
-            self._connection = None
-            self._connection_validated = False
+        except Exception:
             return False
 
-    async def test_connection_parameters(self) -> bool:
-        """
-        Test if connection parameters are valid without establishing full connection.
-
-        This is used for startup validation.
-
-        Returns:
-            True if parameters seem valid, False otherwise
-        """
-        try:
-            # Just test if we can retrieve credentials
-            await self._get_credentials()
-            logger.info(f"Connection parameters validated for {self.hostname}:{self.port}/{self.database}")
-            return True
-        except Exception as e:
-            logger.error(f"Connection parameter validation failed: {str(e)}")
-            return False
-
+    # Required by the abstract base class, but simplified
     async def disconnect(self):
         """Disconnect from PostgreSQL database."""
-        if self._connection:
+        if self._pool:
             try:
-                await asyncio.to_thread(self._connection.close)
-                logger.info("Disconnected from PostgreSQL")
+                self._pool.close()
+                logger.info("Disconnected from PostgreSQL pool")
             except Exception as e:
                 logger.warning(f"Error during disconnect: {str(e)}")
             finally:
-                self._connection = None
+                self._pool = None
 
     async def execute_query(
         self,
@@ -184,73 +169,54 @@ class PostgresDriver(DBConnector):
         parameters: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[str, Any]:
         """
-        Execute a query using direct PostgreSQL connection with connection retry.
-
+        Execute a query using psycopg3 connection pool.
+        
         Args:
             query: SQL query to execute
             parameters: Query parameters (converted from RDS Data API format)
-
+            
         Returns:
             Query result dictionary in RDS Data API format for compatibility
-
-        Raises:
-            psycopg2.Error: If database operation fails
-            Exception: For other errors
         """
-        # Ensure connection is established
-        if not self.is_connected():
-            logger.info("Establishing database connection for query execution...")
-            connected = await self.connect()
-            if not connected:
-                raise Exception("Failed to establish database connection")
-
+        # Ensure pool is established
+        await self._ensure_pool()
+        
         try:
-            if not PSYCOPG2_AVAILABLE or not psycopg2:
-                raise ImportError("psycopg2 is required for direct PostgreSQL connections")
-
-            with self._connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:  # type: ignore[misc]
-                # Convert RDS Data API parameters to psycopg2 format
-                pg_params = self._convert_parameters(parameters) if parameters else None
-
-                await asyncio.to_thread(cursor.execute, query, pg_params)
-
-                # Fetch results if it's a SELECT query
-                if cursor.description:
-                    rows = await asyncio.to_thread(cursor.fetchall)
-                    return self._format_response(rows, cursor.description)
-                else:
-                    # For non-SELECT queries, return affected row count
-                    return {
-                        'numberOfRecordsUpdated': cursor.rowcount,
-                        'records': [],
-                        'columnMetadata': []
-                    }
-
+            # Convert RDS Data API parameters to psycopg format
+            pg_params = self._convert_parameters(parameters) if parameters else None
+            
+            # Execute query using connection from pool
+            with self._pool.connection() as conn:
+                with conn.cursor(row_factory=psycopg.rows.dict_row) as cursor:
+                    cursor.execute(query, pg_params)
+                    
+                    # Fetch results if it's a SELECT query
+                    if cursor.description:
+                        rows = cursor.fetchall()
+                        return self._format_response(rows, cursor.description)
+                    else:
+                        # For non-SELECT queries, return affected row count
+                        return {
+                            'numberOfRecordsUpdated': cursor.rowcount,
+                            'records': [],
+                            'columnMetadata': []
+                        }
+                        
         except Exception as e:
-            # Handle both psycopg2 errors and general exceptions
-            if PSYCOPG2_AVAILABLE and psycopg2 and hasattr(psycopg2, 'OperationalError') and isinstance(e, (psycopg2.OperationalError, psycopg2.InterfaceError)):  # type: ignore[misc]
-                # Connection might be lost, try to reconnect once
-                logger.warning(f"Connection error, attempting to reconnect: {str(e)}")
-                self._connection = None
-                self._connection_validated = False
-
+            # Handle connection errors
+            if isinstance(e, (psycopg.OperationalError, psycopg.InterfaceError)):
+                logger.warning(f"Connection error: {str(e)}")
+                # Reset the pool to force reconnection on next query
+                self._pool = None
                 # Retry once
-                connected = await self.connect()
-                if connected:
-                    return await self.execute_query(query, parameters)
-                else:
-                    raise Exception(f"Failed to reconnect to database: {str(e)}")
-            elif PSYCOPG2_AVAILABLE and psycopg2 and hasattr(psycopg2, 'Error') and isinstance(e, psycopg2.Error):  # type: ignore[misc]
+                await self._ensure_pool()
+                return await self.execute_query(query, parameters)
+            else:
                 logger.error(f"PostgreSQL query error: {str(e)}")
                 raise
-            else:
-                # General exception handling
-                logger.error(f"Unexpected error during query execution: {str(e)}")
-                raise
-            raise
 
     def _convert_parameters(self, rds_params: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Convert RDS Data API parameters to psycopg2 format."""
+        """Convert RDS Data API parameters to psycopg format."""
         pg_params = {}
         for param in rds_params:
             name = param.get('name')
@@ -328,14 +294,19 @@ class PostgresDriver(DBConnector):
 
     async def health_check(self) -> bool:
         """
-        Perform health check on the connection.
-
+        Perform health check on the connection pool.
+        
         Returns:
             True if connection is healthy, False otherwise
         """
+        if not self._pool:
+            return False
+            
         try:
-            await self.execute_query("SELECT 1")
-            return True
+            with self._pool.connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+                    return True
         except Exception as e:
             logger.warning(f"Health check failed for PostgreSQL: {str(e)}")
             return False
@@ -343,11 +314,19 @@ class PostgresDriver(DBConnector):
     @property
     def connection_info(self) -> Dict[str, Any]:
         """Get connection information."""
+        pool_stats = {}
+        if self._pool:
+            try:
+                pool_stats = self._pool.get_stats()
+            except Exception:
+                pass
+                
         return {
             'type': 'psycopg_driver',
             'hostname': self.hostname,
             'port': self.port,
             'database': self.database,
             'readonly': self.readonly,
-            'connected': self.is_connected()
+            'connected': self._pool is not None,
+            'pool_stats': pool_stats
         }
